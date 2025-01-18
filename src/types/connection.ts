@@ -1,4 +1,8 @@
+/*
+connection.ts
 
+This file contains the types for the connection data and the supported filters.
+*/
 
 export interface SupportedFilter {
   key: string;

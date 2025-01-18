@@ -1,6 +1,7 @@
-import { z } from "zod";
 import axios from "axios";
+import { z } from "zod";
 import { Pica as PicaUnified } from "@picahq/unified";
+
 import { ConnectionData, ManageEntityParams } from "./types/connection";
 
 export type EntityTypes = Exclude<keyof PicaUnified, 'axiosInstance' | 'passthrough'>;
