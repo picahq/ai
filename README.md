@@ -42,15 +42,3 @@ export async function POST(request: Request) {
   return (await stream).toDataStreamResponse();
 }
 ```
-
-## Features
-
-- Seamless integration with Vercel AI SDK
-- Full TypeScript support
-- Built-in tools for managing entities
-- System prompt generation
-- Connection management
-
-## License
-
-MIT
