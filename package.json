@@ -1,0 +1,38 @@
+{
+    "name": "@picahq/ai",
+    "version": "0.1.0",
+    "description": "Pica AI SDK for Vercel AI SDK integration",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "prepare": "npm run build"
+    },
+    "keywords": [
+        "pica",
+        "ai",
+        "vercel",
+        "sdk"
+    ],
+    "author": "Pica",
+    "license": "GPL-3.0",
+    "dependencies": {
+        "@picahq/unified": "^1.0.0",
+        "axios": "^1.7.9",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.14",
+        "@types/node": "^20.17.14",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.2.5",
+        "typescript": "^5.7.3"
+    },
+    "peerDependencies": {
+        "ai": "^2.2.31"
+    },
+    "directories": {
+        "test": "tests"
+    },
+    "type": "commonjs"
+}
