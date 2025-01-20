@@ -1,8 +1,8 @@
 # Pica AI SDK
 
-![Pica OneTool](./onetool.svg)
-
 The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI SDK](https://www.npmjs.com/package/ai).
+
+![Pica OneTool](./onetool.svg)
 
 ## Installation
 
