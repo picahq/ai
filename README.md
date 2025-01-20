@@ -20,7 +20,7 @@ npm install @picahq/ai
 
 ## Usage
 
-The Pica AI SDK is designed to work seamlessly with [Vercel AI SDK](https://www.npmjs.com/package/ai) and [@ai-sdk/openai](https://www.npmjs.com/package/@ai-sdk/openai). Here's an example implementation:
+The Pica AI SDK is designed to work seamlessly with [Vercel AI SDK](https://www.npmjs.com/package/ai). Here's an example implementation:
 
 ### Express Example
 
