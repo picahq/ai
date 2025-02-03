@@ -24,6 +24,7 @@ export interface ConnectionData {
   caveats: string[];
   supportedFilters: SupportedFilter[];
   supportedSortKeys: string[] | null;
+  [key: string]: any;
 }
 
 export type ManageEntityParams = {
@@ -41,3 +42,19 @@ export type ManageEntityParams = {
   };
   [key: string]: any;
 };
+
+export interface AvailableActions {
+  _id: string;
+  title: string;
+  connectionPlatform: string;
+  knowledge: string;
+  path: string;
+}
+
+export interface RequestConfig {
+  url: string;
+  method?: string;
+  headers: Record<string, string>;
+  params?: Record<string, string>;
+  data?: unknown;
+}
