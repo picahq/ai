@@ -1,82 +1,69 @@
 import axios from "axios";
 import { z } from "zod";
-import { Pica as PicaUnified } from "@picahq/unified";
 
-import { ConnectionData, ManageEntityParams } from "./types/connection";
+import { AvailableActions, RequestConfig } from "./types/connection";
 
-export type EntityTypes = Exclude<keyof PicaUnified, 'axiosInstance' | 'passthrough'>;
-
-// Map our tool operations to API supported actions
-const OPERATION_TO_ACTION_MAP = {
-  'create': 'create',
-  'update': 'update',
-  'delete': 'delete',
-  'list': 'getMany',
-  'get': 'getOne',
-  'count': 'getCount'
-} as const;
+interface PicaOptions {
+  serverUrl?: string;
+}
 
 export class Pica {
   private secret: string;
-  private integrate: PicaUnified;
   private connections: any;
   private systemPromptValue: string;
   private initialized: Promise<void>;
-  private modelMappings: Array<{ platform: string; modelMappings: any[] }> = [];
 
   private baseUrl = "https://api.picaos.com";
-  private requiredFieldsUrl = `${this.baseUrl}/required-platform-fields`;
-  private connectionDataModelsUrl = `${this.baseUrl}/v1/public/connection-data/models`;
-  private getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=200`;
-  private connectionDefinitionsUrl = `${this.baseUrl}/v1/public/connection-definitions?limit=100`;
+  private getConnectionUrl;
+  private availableActionsUrl;
 
-  constructor(secret: string) {
+  constructor(secret: string, options?: PicaOptions) {
     this.secret = secret;
-    this.integrate = new PicaUnified(this.secret, {
-      serverUrl: `${this.baseUrl}/v1`
-    });
     this.connections = [];
-    this.systemPromptValue = this.getDefaultSystemPrompt('Loading connections...', []);
+    this.systemPromptValue = this.getDefaultSystemPrompt('Loading connections...');
+
+    if (options?.serverUrl) {
+      this.baseUrl = options.serverUrl;
+    }
+
+    this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=200`;
+    this.availableActionsUrl = `${this.baseUrl}/v1/knowledge`;
 
     this.initialized = this.initialize()
       .then(() => {
         const connectionsInfo = this.connections.length > 0
-          ? this.connections
+          ? '\t* ' + this.connections
             .map((conn: any) => `${conn.platform} - Key: ${conn.key}`)
-            .join('\n\t\t\t* ')
+            .join('\n\t* ')
           : 'No connections available';
 
-        this.systemPromptValue = this.getDefaultSystemPrompt(connectionsInfo, this.modelMappings);
+        this.systemPromptValue = this.getDefaultSystemPrompt(connectionsInfo);
       })
       .catch(error => {
         console.error('Error during initialization:', error);
-        this.systemPromptValue = this.getDefaultSystemPrompt('Error loading connections', []);
+        this.systemPromptValue = this.getDefaultSystemPrompt('Error loading connections');
       });
   }
 
   async generateSystemPrompt(userSystemPrompt?: string): Promise<string> {
     await this.waitForInitialization();
 
-    if (!userSystemPrompt) {
-      return `You are Pica (picaos.com), a unified integration assistant. You can instantly connect AI agents to 100+ APIs.
+    const now = new Date();
+    const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: UNIFIED INTEGRATION ASSISTANT ===
+Everything below is for Pica (picaos.com), your integration assistant that can instantly connect your AI agents to 100+ APIs.
+
+Current Time: ${now.toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})
 
 --- Tools Information ---
-${this.system.trim()}`;
-    }
+${this.system.trim()}
+        `;
 
-    return `${userSystemPrompt.trim()}
-
-=== PICA: UNIFIED INTEGRATION ASSISTANT ===
-Everything below is for Pica (picaos.com), your unified integration assistant that can instantly connect your AI agents to 100+ APIs.
-
---- Tools Information ---
-${this.system.trim()}`;
+    return prompt;
   }
 
   private async initialize() {
     await Promise.all([
       this.initializeConnections(),
-      this.initializeModels()
     ]);
   }
 
@@ -88,6 +75,7 @@ ${this.system.trim()}`;
   private async initializeConnections() {
     try {
       const headers = this.generateHeaders();
+
       const response = await axios.get(this.getConnectionUrl, { headers });
       this.connections = response.data?.rows || [];
     } catch (error) {
@@ -96,73 +84,119 @@ ${this.system.trim()}`;
     }
   }
 
-  private async initializeModels() {
-    try {
-      const headers = this.generateHeaders();
-      const response = await axios.get(this.connectionDefinitionsUrl, { headers });
-      const platforms = response?.data?.rows?.map((conn: {
-        platform: string;
-      }) => conn?.platform?.split("::")[0]);
-
-      const uniquePlatforms = [...new Set(platforms)] as string[];
-      this.modelMappings = await Promise.all(
-        uniquePlatforms.map(async (platform) => {
-          try {
-            const modelData = await axios.get(`${this.connectionDataModelsUrl}/${platform.toLowerCase()}`);
-            return {
-              platform,
-              modelMappings: modelData.data
-            };
-          } catch (error) {
-            console.error(`Error fetching models for ${platform}:`, error);
-            return {
-              platform,
-              modelMappings: []
-            };
-          }
-        })
-      );
-      this.modelMappings = this.modelMappings.filter(mapping => mapping.modelMappings.length > 0);
-    } catch (error) {
-      console.error("Failed to initialize models:", error);
-      this.modelMappings = [];
-    }
-  }
-
-  private getDefaultSystemPrompt(connectionsInfo: string, modelMappings: Array<{ platform: string; modelMappings: any[] }>) {
-    const modelInfo = modelMappings.map(({ platform, modelMappings }) => {
-      const mappingDetails = modelMappings
-        .map(mapping => `\t\t\t\t- ${mapping.commonModel} (maps to third party model named ${mapping.platformModel})`)
-        .join('\n');
-      return `\t\t\t* ${platform}:\n${mappingDetails}`;
-    }).join('\n');
-
+  private getDefaultSystemPrompt(connectionsInfo: string) {
     const prompt = `\
-      - you are a powerful integration assistant that can help with various operations
-      - your responses are concise and professional
-      - you can handle both text and voice commands
-      - you have access to the following capabilities:
-        * Manage entities (list, get, create, update, delete, count)
-        * Execute actions with models and connections
-      - For entity operations, use "manageEntity" with:
-        * operation: "list", "get", "create", "update", "delete", or "count"
-        * For create/update operations, all fields must be passed in an object called "data"
-        * Required fields can be fetched using "getRequiredFields"
-      - When users ask about platform capabilities, ALWAYS use manageEntity to get real-time information:
-        * For questions about supported actions
-        * For questions about platform-specific caveats or considerations
-        * For questions about filtering, sorting, or pagination capabilities
-        * NEVER guess or assume platform capabilities - always fetch the actual data
-      - Always use lowercase, plural form for entity types (e.g., "products", "customers", "orders")
-      - Handle errors gracefully and provide clear feedback
-      - Important notes:
-        * Connections can only be deleted through the Pica dashboard
-        * Available connections (only show the latest 5 connections and tell the user to ask for more for a platform if they need them):
-        * ${connectionsInfo}
-        \n\n
-        * Available model mappings by platform (only show the platform name in proper case and number of models available and tell them to ask for more details if they need them):
-${modelInfo}
-    `;
+IMPORTANT: ALWAYS START BY LISTING AVAILABLE ACTIONS FOR THE PLATFORM!
+Before attempting any operation, you must first discover what actions are available.
+
+PLATFORM COMMITMENT:
+- You can freely list and explore actions across ANY platform
+- If a platform has no connection:
+  * You can still list and describe its available actions
+  * But you must inform the user they need to add a connection from the Pica Dashboard (https://app.picaos.com/connections)
+  * Example: "I can tell you about Gmail's actions, but you'll need to add a Gmail connection from the Pica Dashboard to execute them"
+- However, once you START EXECUTING an action:
+  1. The platform MUST have an active connection
+  2. You MUST complete the entire workflow with that platform
+  3. Only consider other platforms after completing the current execution
+- If you need multiple platforms to complete a task:
+  1. First complete the entire execution workflow with the primary platform
+  2. Then explain to the user that you'll need another platform
+  3. Start a new execution workflow with the second platform
+- Example: For "Send an email with a joke":
+  * CORRECT: List Gmail actions -> Get email action knowledge -> Execute email action (with static joke)
+  * INCORRECT: List Gmail actions -> Start email execution -> Switch to OpenAI mid-flow
+- Example: For "What actions are available in Gmail and Slack?":
+  * CORRECT: List Gmail actions -> List Slack actions -> Discuss both
+  * No commitment needed because we're just exploring
+
+Your capabilities must be used in this exact sequence FOR EACH EXECUTION:
+
+1. LIST AVAILABLE ACTIONS (ALWAYS FIRST)
+   - Command: getAvailableActions
+   - Purpose: Get a simple list of available actions for a platform
+   - Usage: This must be your first step for ANY user request
+   - When to use: BEFORE attempting any other operation
+   - Note: Can be used for ANY platform, even without a connection
+   - Output: Returns a clean list of action titles and IDs
+   - Presentation: Present actions naturally and efficiently:
+     * Group related actions together and present them concisely
+     * Example: Instead of listing separately, group as "Manage workflow permissions (add/remove/view)"
+     * Remove redundant words and technical jargon
+     * Keep responses concise and group similar functionality
+     * Use natural, conversational language that feels fluid
+     * If no connection exists, explain how to add one
+
+2. GET ACTION DETAILS (ALWAYS SECOND)
+   - Command: getActionKnowledge
+   - Purpose: Fetch full details and knowledge documentation for a specific action
+   - When to use: After finding the appropriate action ID from step 1
+   - Required: Must have action ID from getAvailableActions first
+   - Note: Can be used to explore actions even without a connection
+   - Output: Returns complete action object with:
+     * Knowledge documentation
+     * Required fields and their types
+     * Path information
+     * HTTP method
+     * Constraints and validation rules
+
+3. EXECUTE ACTIONS (ALWAYS LAST)
+   - Command: execute
+   - Purpose: Execute specific platform actions through the passthrough API
+   - When to use: Only after completing steps 1 and 2
+   - Required: MUST have an active connection from the Pica Dashboard
+   - Required Parameters:
+     * platform: The target platform
+     * action: The action object with { _id, path }
+     * connectionKey: The connection key for authentication
+     * data: The request payload (optional)
+     * pathVariables: Values for path variables (if needed)
+     * queryParams: Query parameters (if needed)
+
+WORKFLOW (MUST FOLLOW THIS ORDER FOR EACH PLATFORM):
+1. For ANY user request:
+   a. FIRST: Call getAvailableActions to list what's possible
+   b. THEN: Identify the appropriate action from the list
+   c. NEXT: Call getActionKnowledge to get full details
+   d. FINALLY: Execute with proper parameters
+   e. Only after completing all steps, consider if another platform is needed
+
+2. Knowledge Parsing:
+   - After getting knowledge, analyze it to understand:
+     * Required data fields and their format
+     * Required path variables
+     * Required query parameters
+     * Any constraints and validation rules
+   - Only ask the user for information that:
+     * Is not in the knowledge documentation
+     * Requires user choice or input
+     * Cannot be determined automatically
+
+3. Error Prevention:
+   - Never try to execute without first listing actions
+   - Never assume action IDs - they must come from getAvailableActions
+   - Never switch platforms mid-flow - complete the current platform first
+   - Validate all input against knowledge documentation
+   - Provide clear, actionable error messages
+
+Best Practices:
+- Always start with getAvailableActions - no exceptions
+- Complete all steps with one platform before moving to another
+- Parse knowledge documentation before asking users for input
+- Use examples from knowledge documentation to guide users
+- Maintain a professional and efficient communication style
+
+Remember:
+- You can explore ANY platform's actions, even without a connection
+- Connections must be added through the Pica Dashboard (https://app.picaos.com/connections)
+- Security is paramount - never expose or request sensitive credentials
+- Handle all {{variables}} in paths before execution
+- Complete one platform's workflow before starting another
+
+IMPORTANT GUIDELINES:
+- You have access to execute actions for the following connections (only show the latest 5 connections and tell the user to ask for more for a platform if they need them):
+${connectionsInfo}
+`;
     return prompt;
   }
 
@@ -177,205 +211,310 @@ ${modelInfo}
     };
   }
 
-  private async getRequiredFields(entityType: string, platform: string) {
+  private async paginateResults<T>(
+    fetchFn: (skip: number, limit: number) => Promise<{
+      rows: T[],
+      total: number,
+      skip: number,
+      limit: number
+    }>,
+    limit = 100
+  ): Promise<T[]> {
+    let skip = 0;
+    let allResults: T[] = [];
+    let total = 0;
+
     try {
-      const response = await axios.get(this.requiredFieldsUrl);
-      const requiredFieldsMap = response.data;
+      do {
+        const response = await fetchFn(skip, limit);
+        const { rows, total: totalCount } = response;
+        total = totalCount;
+        allResults = [...allResults, ...rows];
+        skip += limit;
+      } while (allResults.length < total);
 
-      const requiredFields = (requiredFieldsMap[entityType]?.[platform] || []) as string[];
-
-      return requiredFields;
+      return allResults;
     } catch (error) {
-      console.error("Error fetching required fields:", error);
-      throw new Error("Failed to fetch required fields");
+      console.error("Error in pagination:", error);
+      throw error;
     }
   }
 
-  private async getConnectionData(entityType: string, platform: string): Promise<ConnectionData | null> {
+  private async getAllAvailableActions(platform: string): Promise<AvailableActions[]> {
     try {
-      const response = await axios.get(
-        `${this.baseUrl}/v1/public/connection-data/${entityType}/${platform}`,
+      const fetchPage = (skip: number, limit: number) =>
+        axios.get<{
+          rows: AvailableActions[],
+          total: number,
+          skip: number,
+          limit: number
+        }>(
+          `${this.availableActionsUrl}?connectionPlatform=${platform}&skip=${skip}&limit=${limit}`,
+          { headers: this.generateHeaders() }
+        ).then(response => response.data);
+
+      return await this.paginateResults<AvailableActions>(fetchPage);
+    } catch (error) {
+      console.error("Error fetching all available actions:", error);
+      throw new Error("Failed to fetch all available actions");
+    }
+  }
+
+  private async getSingleAction(actionId: string): Promise<AvailableActions> {
+    try {
+      const response = await axios.get<{
+        rows: AvailableActions[],
+        total: number,
+        skip: number,
+        limit: number
+      }>(
+        `${this.availableActionsUrl}?_id=${actionId}`,
         { headers: this.generateHeaders() }
       );
 
-      return response.data;
+      if (!response.data.rows || response.data.rows.length === 0) {
+        throw new Error(`Action with ID ${actionId} not found`);
+      }
+
+      return response.data.rows[0];
     } catch (error) {
-      console.error("Error fetching connection data:", error);
-      return null;
+      console.error("Error fetching single action:", error);
+      throw new Error("Failed to fetch action");
     }
+  }
+
+  private async getAvailableActions(platform: string) {
+    try {
+      const allActions = await this.getAllAvailableActions(platform);
+      return {
+        total: allActions.length,
+        actions: allActions
+      };
+    } catch (error) {
+      console.error("Error fetching available actions:", error);
+      throw new Error("Failed to fetch available actions");
+    }
+  }
+
+  private async executePassthrough(
+    actionId: string,
+    connectionKey: string,
+    data: any,
+    path: string,
+    method?: string,
+    queryParams?: Record<string, string>
+  ): Promise<{
+    responseData: unknown;
+    requestConfig: RequestConfig;
+  }> {
+    try {
+      const headers = {
+        ...this.generateHeaders(),
+        'x-pica-connection-key': connectionKey,
+        'x-pica-action-id': actionId
+      };
+
+      const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
+
+      const requestConfig: RequestConfig = {
+        url,
+        method,
+        headers,
+        params: queryParams
+      };
+
+      if (method?.toLowerCase() !== 'get') {
+        requestConfig.data = data;
+      }
+
+      const response = await axios(requestConfig);
+
+      return {
+        responseData: response.data,
+        requestConfig
+      };
+    } catch (error) {
+      console.error("Error executing passthrough:", error);
+      throw error;
+    }
+  }
+
+  private replacePathVariables(path: string, variables: Record<string, string>): string {
+    return path.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
+      const value = variables[variable];
+      if (!value) {
+        throw new Error(`Missing value for path variable: ${variable}`);
+      }
+      return value;
+    });
   }
 
   get oneTool() {
     return {
-      manageEntity: {
-        description: "Unified tool for managing entities (list, get, create, update, delete, count)",
+      getAvailableActions: {
+        description: "Get available actions for a specific platform",
         parameters: z.object({
-          operation: z.enum(['list', 'get', 'create', 'update', 'delete', 'count', 'capabilities']),
-          entityType: z.string(),
-          connectionKey: z.string(),
-          id: z.string().optional(),
-          data: z.record(z.any()).optional(),
-          filters: z.object({
-            limit: z.number().optional(),
-            createdAfter: z.string().optional(),
-            createdBefore: z.string().optional(),
-            updatedAfter: z.string().optional(),
-            updatedBefore: z.string().optional(),
-          }).optional(),
+          platform: z.string(),
         }),
-        execute: async (params: ManageEntityParams) => {
+        execute: async (params: {
+          platform: string;
+        }) => {
           try {
-            const { operation, entityType, connectionKey, id, data, filters } = params;
+            const availableActions = await this.getAvailableActions(params.platform);
 
-            // Get platform from connectionKey (format is test::platform::default::hash)
-            const platform = connectionKey.split('::')[1];
-            if (!platform) {
-              throw new Error('Invalid connection key format');
+            const simplifiedActions = availableActions.actions.map(action => ({
+              _id: action._id,
+              title: action.title,
+            }));
+
+            return {
+              success: true,
+              actions: simplifiedActions,
+              platform: params.platform,
+              content: `Found ${simplifiedActions.length} available actions for ${params.platform}`
+            };
+          } catch (error: any) {
+            console.error("Error getting available actions:", error);
+            return {
+              success: false,
+              title: "Failed to get available actions",
+              message: error.message,
+              raw: JSON.stringify(error)
+            };
+          }
+        },
+      },
+      getActionKnowledge: {
+        description: "Get full action details including knowledge documentation for a specific action",
+        parameters: z.object({
+          platform: z.string(),
+          actionId: z.string(),
+        }),
+        execute: async (params: {
+          platform: string;
+          actionId: string;
+        }) => {
+          try {
+            const action = await this.getSingleAction(params.actionId);
+
+            return {
+              success: true,
+              action,
+              platform: params.platform,
+              content: `Found knowledge for action: ${action.title}`
+            };
+          } catch (error: any) {
+            console.error("Error getting action knowledge:", error);
+            return {
+              success: false,
+              title: "Failed to get action knowledge",
+              message: error.message,
+              raw: JSON.stringify(error)
+            };
+          }
+        }
+      },
+      execute: {
+        description: "Execute a specific action using the passthrough API",
+        parameters: z.object({
+          platform: z.string(),
+          action: z.object({
+            _id: z.string(),
+            path: z.string()
+          }),
+          method: z.string(),
+          connectionKey: z.string(),
+          data: z.record(z.any()).optional(),
+          pathVariables: z.record(z.string()).optional(),
+          queryParams: z.record(z.string()).optional(),
+        }),
+        execute: async (params: {
+          platform: string;
+          action: {
+            _id: string;
+            path: string;
+          };
+          method: string;
+          connectionKey: string;
+          data?: Record<string, any>;
+          pathVariables?: Record<string, string>;
+          queryParams?: Record<string, string>;
+        }) => {
+          try {
+            const actionResult = await this.oneTool.getActionKnowledge.execute({
+              platform: params.platform,
+              actionId: params.action._id
+            });
+
+            if (!actionResult.success || !actionResult.action) {
+              throw new Error(`Invalid action ID "${params.data?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
             }
 
-            const connectionData = await this.getConnectionData(entityType, platform);
-            const isCapabilityInfoRequest = operation === 'capabilities';
+            const fullAction = actionResult.action;
 
-            if (isCapabilityInfoRequest && connectionData) {
-              return {
-                data: connectionData,
-                content: `Successfully fetched capabilities for ${entityType} in ${platform}.`
+            // Handle path variables
+            const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
+            let resolvedPath = params.action.path;
+
+            if (templateVariables) {
+              const requiredVariables = templateVariables.map(v => v.replace(/\{\{|\}\}/g, ''));
+              const combinedVariables = {
+                ...(params.data || {}),
+                ...(params.pathVariables || {})
               };
-            }
 
-            const integrationInstance = this.integrate[entityType.toLowerCase() as EntityTypes](connectionKey);
-            if (!integrationInstance) {
-              throw new Error(`Invalid entity type: ${entityType}`);
-            }
+              const missingVariables = requiredVariables.filter(v => !combinedVariables[v]);
 
-            if (connectionData) {
-              // Only check operation support for actual operations (not capabilities)
-              if (!isCapabilityInfoRequest) {
-                const apiAction = OPERATION_TO_ACTION_MAP[operation as keyof typeof OPERATION_TO_ACTION_MAP];
-                if (!apiAction || !connectionData.supportedActions.includes(apiAction)) {
-                  throw new Error(`Operation ${operation} is not supported for ${entityType} in ${platform}`);
-                }
+              if (missingVariables.length > 0) {
+                throw new Error(
+                  `Missing required path variables: ${missingVariables.join(', ')}. ` +
+                  `Please provide values for these variables.`
+                );
               }
 
-              // Add caveats to response if they exist
-              const caveats = connectionData.caveats?.length > 0
-                ? ` Note: ${connectionData.caveats.map(c => JSON.stringify(c)).join(', ')}`
-                : '';
+              // Clean up data object and prepare path variables
+              requiredVariables.forEach(v => {
+                if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
+                  if (!params.pathVariables) params.pathVariables = {};
+                  params.pathVariables[v] = params.data[v];
+                  delete params.data[v];
+                }
+              });
 
-              // Store connection metadata to be included in responses
-              params.connectionMetadata = { caveats };
+              resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
             }
 
-            let response;
-            switch (operation) {
-              case 'list':
-                response = await integrationInstance.list(filters || {}, { responsePassthrough: true });
-                if (!response?.unified) {
-                  throw new Error('No unified response received from the integration');
-                }
-                return {
-                  data: response.unified,
-                  content: `Found ${response.unified.length} ${entityType}.`
-                };
+            // Execute the passthrough request with all components
+            const result = await this.executePassthrough(
+              params.action._id,
+              params.connectionKey,
+              params.data,
+              resolvedPath,
+              params.method,
+              params.queryParams
+            );
 
-              case 'get':
-                if (!id) throw new Error('ID is required for get operation');
-                response = await integrationInstance.get(id, { responsePassthrough: true });
-                if (!response?.unified) {
-                  throw new Error('No unified response received from the integration');
-                }
-                return {
-                  data: response.unified,
-                  content: `Successfully retrieved ${entityType} with ID: ${id}`
-                };
-
-              case 'create':
-                if (!data) throw new Error('Data is required for create operation');
-                response = await integrationInstance.create(data, { responsePassthrough: true });
-                if (!response?.unified) {
-                  throw new Error('No unified response received from the integration');
-                }
-                return {
-                  data: response.unified,
-                  content: `Successfully created ${entityType} with ID: ${response.unified.id}`
-                };
-
-              case 'update':
-                if (!id) throw new Error('ID is required for update operation');
-                if (!data) throw new Error('Data is required for update operation');
-                response = await integrationInstance.update(id, data, { responsePassthrough: true });
-                if (!response?.meta) {
-                  throw new Error('No meta response received from the integration');
-                }
-                return {
-                  data: response.meta,
-                  content: `Successfully updated ${entityType} with ID: ${id}`
-                };
-
-              case 'delete':
-                if (!id) throw new Error('ID is required for delete operation');
-                response = await integrationInstance.delete(id);
-                if (!response?.meta) {
-                  throw new Error('No unified response received from the integration');
-                }
-                return {
-                  data: response.unified,
-                  content: `Successfully deleted ${entityType} with ID: ${id}`
-                };
-
-              case 'count':
-                response = await integrationInstance.count({ responsePassthrough: true });
-                if (!response) {
-                  throw new Error('No response received from the integration');
-                }
-                return {
-                  data: response,
-                  content: `Total ${entityType} count: ${response}`
-                };
-
-              default:
-                throw new Error(`Unsupported operation: ${operation}`);
-            }
+            return {
+              success: true,
+              data: result.responseData,
+              connectionKey: params.connectionKey,
+              platform: params.platform,
+              action: fullAction.title,
+              requestConfig: result.requestConfig,
+              knowledge: fullAction.knowledge,
+              content: `Executed ${fullAction.title} via ${params.platform}`,
+            };
           } catch (error: any) {
-            console.error(`Error in ${params.operation} operation for ${params.entityType}:`, {
+            console.error("Error executing action:", error);
+            return {
+              success: false,
+              title: "Failed to execute action",
               message: error.message,
-              stack: error.stack,
-              params
-            });
-            return {
-              error: `Failed to ${params.operation} ${params.entityType}: ${error.message}`,
-              content: `Failed to ${params.operation} ${params.entityType}: ${error.message}`
+              raw: JSON.stringify(error)
             };
           }
-        },
-      },
-
-      getRequiredFields: {
-        description: "Get required fields for a specific entity type and platform",
-        parameters: z.object({
-          entityType: z.string(),
-          platform: z.string(),
-          data: z.record(z.any()).optional(),
-        }),
-        execute: async (params: { entityType: string; platform: string; data?: Record<string, any> }) => {
-          try {
-            const requiredFields = await this.getRequiredFields(params.entityType, params.platform);
-
-            return {
-              data: {
-                requiredFields,
-              },
-              content: `Required fields for ${params.entityType} in ${params.platform}: ${requiredFields.join(', ')}`
-            };
-          } catch (error: any) {
-            console.error("Error getting required fields:", error);
-            return {
-              error: `Failed to get required fields: ${error.message}`,
-              content: `Failed to get required fields: ${error.message}`
-            };
-          }
-        },
-      },
+        }
+      }
     };
   }
 }
