@@ -33,6 +33,7 @@ export class Pica {
       .then(() => {
         const connectionsInfo = this.connections.length > 0
           ? '\t* ' + this.connections
+            .filter((conn: any) => conn.active)
             .map((conn: any) => `${conn.platform} - Key: ${conn.key}`)
             .join('\n\t* ')
           : 'No connections available';
