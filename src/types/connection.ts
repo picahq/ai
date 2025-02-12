@@ -54,7 +54,7 @@ export interface AvailableActions {
 export interface RequestConfig {
   url: string;
   method?: string;
-  headers: Record<string, string>;
-  params?: Record<string, string>;
+  headers: Record<string, string | number | boolean>;
+  params?: Record<string, string | number | boolean>;
   data?: unknown;
 }
