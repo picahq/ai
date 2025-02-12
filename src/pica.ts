@@ -303,7 +303,7 @@ ${connectionsInfo}
     data: any,
     path: string,
     method?: string,
-    queryParams?: Record<string, string>
+    queryParams?: Record<string, string | number | boolean>
   ): Promise<{
     responseData: unknown;
     requestConfig: RequestConfig;
@@ -340,13 +340,13 @@ ${connectionsInfo}
     }
   }
 
-  private replacePathVariables(path: string, variables: Record<string, string>): string {
+  private replacePathVariables(path: string, variables: Record<string, string | number | boolean>): string {
     return path.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
       const value = variables[variable];
       if (!value) {
         throw new Error(`Missing value for path variable: ${variable}`);
       }
-      return value;
+      return value.toString();
     });
   }
 
@@ -426,8 +426,8 @@ ${connectionsInfo}
           method: z.string(),
           connectionKey: z.string(),
           data: z.record(z.any()).optional(),
-          pathVariables: z.record(z.string()).optional(),
-          queryParams: z.record(z.string()).optional(),
+          pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+          queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
         }),
         execute: async (params: {
           platform: string;
@@ -438,8 +438,8 @@ ${connectionsInfo}
           method: string;
           connectionKey: string;
           data?: Record<string, any>;
-          pathVariables?: Record<string, string>;
-          queryParams?: Record<string, string>;
+          pathVariables?: Record<string, string | number | boolean>;
+          queryParams?: Record<string, string | number | boolean>;
         }) => {
           try {
             const actionResult = await this.oneTool.getActionKnowledge.execute({

@@ -104,6 +104,11 @@ export async function POST(request: Request) {
 
   const pica = new Pica(process.env.PICA_SECRET_KEY as string);
 
+  // Optional: Custom server url for self-hosted Pica
+  // const pica = new Pica(process.env.PICA_SECRET_KEY as string, {
+  //   serverUrl: "http://localhost:3000",
+  // });
+
   const systemPrompt = await pica.generateSystemPrompt();
 
   const stream = streamText({
