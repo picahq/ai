@@ -426,9 +426,9 @@ ${connectionsInfo}
           }),
           method: z.string(),
           connectionKey: z.string(),
-          data: z.object({}).passthrough().optional(),
-          pathVariables: z.object({}).passthrough().optional(),
-          queryParams: z.object({}).passthrough().optional(),
+          data: z.any().optional(),
+          pathVariables: z.any().optional(),
+          queryParams: z.any().optional(),
         }),
         execute: async (params: {
           platform: string;
