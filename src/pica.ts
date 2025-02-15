@@ -418,18 +418,6 @@ ${connectionsInfo}
       },
       execute: {
         description: "Execute a specific action using the passthrough API",
-        parameters: z.object({
-          platform: z.string(),
-          action: z.object({
-            _id: z.string(),
-            path: z.string()
-          }),
-          method: z.string(),
-          connectionKey: z.string(),
-          data: z.any().optional(),
-          pathVariables: z.any().optional(),
-          queryParams: z.any().optional(),
-        }),
         execute: async (params: {
           platform: string;
           action: {
