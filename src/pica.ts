@@ -591,7 +591,7 @@ ${connectionsInfo}
           }),
           method: z.string(),
           connectionKey: z.string(),
-          data: z.record(z.any()).optional(),
+          data: z.any(),
           pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
           queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
         }),
@@ -603,7 +603,7 @@ ${connectionsInfo}
           };
           method: string;
           connectionKey: string;
-          data?: Record<string, any>;
+          data?: any;
           pathVariables?: Record<string, string | number | boolean>;
           queryParams?: Record<string, string | number | boolean>;
         }) => {
@@ -614,7 +614,7 @@ ${connectionsInfo}
             });
 
             if (!actionResult.success || !actionResult.action) {
-              throw new Error(`Invalid action ID "${params.data?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
+              throw new Error(`Invalid action ID "${params?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
             }
 
             const fullAction = actionResult.action;
@@ -626,7 +626,7 @@ ${connectionsInfo}
             if (templateVariables) {
               const requiredVariables = templateVariables.map(v => v.replace(/\{\{|\}\}/g, ''));
               const combinedVariables = {
-                ...(params.data || {}),
+                ...(Array.isArray(params.data) ? {} : (params.data || {})),
                 ...(params.pathVariables || {})
               };
 
@@ -640,13 +640,15 @@ ${connectionsInfo}
               }
 
               // Clean up data object and prepare path variables
-              requiredVariables.forEach(v => {
-                if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
-                  if (!params.pathVariables) params.pathVariables = {};
-                  params.pathVariables[v] = params.data[v];
-                  delete params.data[v];
-                }
-              });
+              if (!Array.isArray(params.data)) {
+                requiredVariables.forEach(v => {
+                  if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
+                    if (!params.pathVariables) params.pathVariables = {};
+                    params.pathVariables[v] = params.data[v];
+                    delete params.data[v];
+                  }
+                });
+              }
 
               resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
             }
