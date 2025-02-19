@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AvailableActions, RequestConfig } from "./types/connection";
 
 interface PicaOptions {
+  connectors?: string[];
   serverUrl?: string;
 }
 
@@ -31,9 +32,16 @@ export class Pica {
 
     this.initialized = this.initialize()
       .then(() => {
-        const connectionsInfo = this.connections.length > 0
-          ? '\t* ' + this.connections
-            .filter((conn: any) => conn.active)
+        let filteredConnections = this.connections.filter((conn: any) => conn.active);
+
+        if (options?.connectors) {
+          filteredConnections = filteredConnections.filter((conn: any) =>
+            options.connectors!.includes(conn.key)
+          );
+        }
+
+        const connectionsInfo = filteredConnections.length > 0
+          ? '\t* ' + filteredConnections
             .map((conn: any) => `${conn.platform} - Key: ${conn.key}`)
             .join('\n\t* ')
           : 'No connections available';
