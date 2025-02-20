@@ -135,6 +135,7 @@ Your capabilities must be used in this exact sequence FOR EACH EXECUTION:
      * Keep responses concise and group similar functionality
      * Use natural, conversational language that feels fluid
      * If no connection exists, explain how to add one
+     * When listing actions, always order them by the actions with the featured tag first
 
 2. GET ACTION DETAILS (ALWAYS SECOND)
    - Command: getActionKnowledge
@@ -195,6 +196,7 @@ Best Practices:
 - Use examples from knowledge documentation to guide users
 - Maintain a professional and efficient communication style
 - After every invocation of the execute tool, you must follow it up with a consise summary of the action that was executed and the result
+- Important: Always load the knowledge needed to provide the best user experience.
 
 Remember:
 - You can explore ANY platform's actions, even without a connection
@@ -375,6 +377,7 @@ ${connectionsInfo}
             const simplifiedActions = availableActions.actions.map(action => ({
               _id: action._id,
               title: action.title,
+              tags: action.tags,
             }));
 
             return {
