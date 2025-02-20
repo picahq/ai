@@ -49,6 +49,8 @@ export interface AvailableActions {
   connectionPlatform: string;
   knowledge: string;
   path: string;
+  baseUrl: string;
+  tags: string[];
 }
 
 export interface RequestConfig {

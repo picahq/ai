@@ -135,6 +135,7 @@ Your capabilities must be used in this exact sequence FOR EACH EXECUTION:
      * Keep responses concise and group similar functionality
      * Use natural, conversational language that feels fluid
      * If no connection exists, explain how to add one
+     * When listing actions, always order them by the actions with the featured tag first
 
 2. GET ACTION DETAILS (ALWAYS SECOND)
    - Command: getActionKnowledge
@@ -195,6 +196,7 @@ Best Practices:
 - Use examples from knowledge documentation to guide users
 - Maintain a professional and efficient communication style
 - After every invocation of the execute tool, you must follow it up with a consise summary of the action that was executed and the result
+- Important: Always load the knowledge needed to provide the best user experience.
 
 Remember:
 - You can explore ANY platform's actions, even without a connection
@@ -359,163 +361,6 @@ ${connectionsInfo}
     });
   }
 
-  get oneToolGemini() {
-    return {
-      getAvailableActions: {
-        description: "Get available actions for a specific platform",
-        parameters: z.object({
-          platform: z.string(),
-        }),
-        execute: async (params: {
-          platform: string;
-        }) => {
-          try {
-            const availableActions = await this.getAvailableActions(params.platform);
-
-            const simplifiedActions = availableActions.actions.map(action => ({
-              _id: action._id,
-              title: action.title,
-            }));
-
-            return {
-              success: true,
-              actions: simplifiedActions,
-              platform: params.platform,
-              content: `Found ${simplifiedActions.length} available actions for ${params.platform}`
-            };
-          } catch (error: any) {
-            console.error("Error getting available actions:", error);
-            return {
-              success: false,
-              title: "Failed to get available actions",
-              message: error.message,
-              raw: JSON.stringify(error)
-            };
-          }
-        },
-      },
-      getActionKnowledge: {
-        description: "Get full action details including knowledge documentation for a specific action",
-        parameters: z.object({
-          platform: z.string(),
-          actionId: z.string(),
-        }),
-        execute: async (params: {
-          platform: string;
-          actionId: string;
-        }) => {
-          try {
-            const action = await this.getSingleAction(params.actionId);
-
-            return {
-              success: true,
-              action,
-              platform: params.platform,
-              content: `Found knowledge for action: ${action.title}`
-            };
-          } catch (error: any) {
-            console.error("Error getting action knowledge:", error);
-            return {
-              success: false,
-              title: "Failed to get action knowledge",
-              message: error.message,
-              raw: JSON.stringify(error)
-            };
-          }
-        }
-      },
-      execute: {
-        description: "Execute a specific action using the passthrough API",
-        execute: async (params: {
-          platform: string;
-          action: {
-            _id: string;
-            path: string;
-          };
-          method: string;
-          connectionKey: string;
-          data?: Record<string, any>;
-          pathVariables?: Record<string, any>;
-          queryParams?: Record<string, any>;
-        }) => {
-          try {
-            const actionResult = await this.oneTool.getActionKnowledge.execute({
-              platform: params.platform,
-              actionId: params.action._id
-            });
-
-            if (!actionResult.success || !actionResult.action) {
-              throw new Error(`Invalid action ID "${params.data?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
-            }
-
-            const fullAction = actionResult.action;
-
-            // Handle path variables
-            const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
-            let resolvedPath = params.action.path;
-
-            if (templateVariables) {
-              const requiredVariables = templateVariables.map(v => v.replace(/\{\{|\}\}/g, ''));
-              const combinedVariables = {
-                ...(params.data || {}),
-                ...(params.pathVariables || {})
-              };
-
-              const missingVariables = requiredVariables.filter(v => !combinedVariables[v]);
-
-              if (missingVariables.length > 0) {
-                throw new Error(
-                  `Missing required path variables: ${missingVariables.join(', ')}. ` +
-                  `Please provide values for these variables.`
-                );
-              }
-
-              // Clean up data object and prepare path variables
-              requiredVariables.forEach(v => {
-                if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
-                  if (!params.pathVariables) params.pathVariables = {};
-                  params.pathVariables[v] = params.data[v];
-                  delete params.data[v];
-                }
-              });
-
-              resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
-            }
-
-            // Execute the passthrough request with all components
-            const result = await this.executePassthrough(
-              params.action._id,
-              params.connectionKey,
-              params.data,
-              resolvedPath,
-              params.method,
-              params.queryParams
-            );
-
-            return {
-              success: true,
-              data: result.responseData,
-              connectionKey: params.connectionKey,
-              platform: params.platform,
-              action: fullAction.title,
-              requestConfig: result.requestConfig,
-              knowledge: fullAction.knowledge,
-              content: `Executed ${fullAction.title} via ${params.platform}`,
-            };
-          } catch (error: any) {
-            console.error("Error executing action:", error);
-            return {
-              success: false,
-              title: "Failed to execute action",
-              message: error.message,
-              raw: JSON.stringify(error)
-            };
-          }
-        }
-      }
-    };
-  }
-
   get oneTool() {
     return {
       getAvailableActions: {
@@ -532,6 +377,7 @@ ${connectionsInfo}
             const simplifiedActions = availableActions.actions.map(action => ({
               _id: action._id,
               title: action.title,
+              tags: action.tags,
             }));
 
             return {
@@ -591,7 +437,7 @@ ${connectionsInfo}
           }),
           method: z.string(),
           connectionKey: z.string(),
-          data: z.record(z.any()).optional(),
+          data: z.any(),
           pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
           queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
         }),
@@ -603,21 +449,12 @@ ${connectionsInfo}
           };
           method: string;
           connectionKey: string;
-          data?: Record<string, any>;
+          data?: any;
           pathVariables?: Record<string, string | number | boolean>;
           queryParams?: Record<string, string | number | boolean>;
         }) => {
           try {
-            const actionResult = await this.oneTool.getActionKnowledge.execute({
-              platform: params.platform,
-              actionId: params.action._id
-            });
-
-            if (!actionResult.success || !actionResult.action) {
-              throw new Error(`Invalid action ID "${params.data?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
-            }
-
-            const fullAction = actionResult.action;
+            const fullAction = await this.getSingleAction(params.action._id);
 
             // Handle path variables
             const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
@@ -626,7 +463,7 @@ ${connectionsInfo}
             if (templateVariables) {
               const requiredVariables = templateVariables.map(v => v.replace(/\{\{|\}\}/g, ''));
               const combinedVariables = {
-                ...(params.data || {}),
+                ...(Array.isArray(params.data) ? {} : (params.data || {})),
                 ...(params.pathVariables || {})
               };
 
@@ -640,13 +477,15 @@ ${connectionsInfo}
               }
 
               // Clean up data object and prepare path variables
-              requiredVariables.forEach(v => {
-                if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
-                  if (!params.pathVariables) params.pathVariables = {};
-                  params.pathVariables[v] = params.data[v];
-                  delete params.data[v];
-                }
-              });
+              if (!Array.isArray(params.data)) {
+                requiredVariables.forEach(v => {
+                  if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
+                    if (!params.pathVariables) params.pathVariables = {};
+                    params.pathVariables[v] = params.data[v];
+                    delete params.data[v];
+                  }
+                });
+              }
 
               resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
             }
