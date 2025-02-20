@@ -451,16 +451,7 @@ ${connectionsInfo}
           queryParams?: Record<string, string | number | boolean>;
         }) => {
           try {
-            const actionResult = await this.oneTool.getActionKnowledge.execute({
-              platform: params.platform,
-              actionId: params.action._id
-            });
-
-            if (!actionResult.success || !actionResult.action) {
-              throw new Error(`Invalid action ID "${params?.action?._id}". Please get the correct action ID by calling getAvailableActions first.`);
-            }
-
-            const fullAction = actionResult.action;
+            const fullAction = await this.getSingleAction(params.action._id);
 
             // Handle path variables
             const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
