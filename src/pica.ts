@@ -419,7 +419,7 @@ ${availablePlatformsInfo}
               success: false,
               title: "Failed to get available actions",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         },
@@ -449,7 +449,7 @@ ${availablePlatformsInfo}
               success: false,
               title: "Failed to get action knowledge",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         }
@@ -543,7 +543,7 @@ ${availablePlatformsInfo}
               success: false,
               title: "Failed to execute action",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         }
