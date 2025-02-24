@@ -1,7 +1,12 @@
 import axios from "axios";
 import { z } from "zod";
 
-import { AvailableActions, RequestConfig } from "./types/connection";
+import {
+  AvailableActions,
+  RequestConfig,
+  ConnectionDefinition,
+  Connection
+} from "./types/connection";
 
 interface PicaOptions {
   connectors?: string[];
@@ -10,26 +15,29 @@ interface PicaOptions {
 
 export class Pica {
   private secret: string;
-  private connections: any;
+  private connections: Connection[];
+  private connectionDefinitions: ConnectionDefinition[];
   private systemPromptValue: string;
   private initialized: Promise<void>;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
   private availableActionsUrl;
+  private getConnectionDefinitionsUrl;
 
   constructor(secret: string, options?: PicaOptions) {
     this.secret = secret;
     this.connections = [];
+    this.connectionDefinitions = [];
     this.systemPromptValue = this.getDefaultSystemPrompt('Loading connections...');
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
     }
 
-    this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=200`;
+    this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=300`;
     this.availableActionsUrl = `${this.baseUrl}/v1/knowledge`;
-
+    this.getConnectionDefinitionsUrl = `${this.baseUrl}/v1/public/connection-definitions?limit=500`;
     this.initialized = this.initialize()
       .then(() => {
         let filteredConnections = this.connections.filter((conn: any) => conn.active);
@@ -46,7 +54,11 @@ export class Pica {
             .join('\n\t* ')
           : 'No connections available';
 
-        this.systemPromptValue = this.getDefaultSystemPrompt(connectionsInfo);
+        const availablePlatformsInfo = this.connectionDefinitions.map((def) =>
+          `\n\t* ${def.platform} (${def.frontend.spec.title})`
+        ).join('');
+
+        this.systemPromptValue = this.getDefaultSystemPrompt(connectionsInfo, availablePlatformsInfo);
       })
       .catch(error => {
         console.error('Error during initialization:', error);
@@ -58,7 +70,7 @@ export class Pica {
     await this.waitForInitialization();
 
     const now = new Date();
-    const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: UNIFIED INTEGRATION ASSISTANT ===
+    const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: INTEGRATION ASSISTANT ===
 Everything below is for Pica (picaos.com), your integration assistant that can instantly connect your AI agents to 100+ APIs.
 
 Current Time: ${now.toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})
@@ -73,6 +85,7 @@ ${this.system.trim()}
   private async initialize() {
     await Promise.all([
       this.initializeConnections(),
+      this.initializeConnectionDefinitions(),
     ]);
   }
 
@@ -93,7 +106,18 @@ ${this.system.trim()}
     }
   }
 
-  private getDefaultSystemPrompt(connectionsInfo: string) {
+  private async initializeConnectionDefinitions() {
+    try {
+      const headers = this.generateHeaders();
+      const response = await axios.get(this.getConnectionDefinitionsUrl, { headers });
+      this.connectionDefinitions = response.data?.rows || [];
+    } catch (error) {
+      console.error("Failed to initialize connection definitions:", error);
+      this.connectionDefinitions = [];
+    }
+  }
+
+  private getDefaultSystemPrompt(connectionsInfo: string, availablePlatformsInfo?: string) {
     const prompt = `\
 IMPORTANT: ALWAYS START BY LISTING AVAILABLE ACTIONS FOR THE PLATFORM!
 Before attempting any operation, you must first discover what actions are available.
@@ -208,6 +232,9 @@ Remember:
 IMPORTANT GUIDELINES:
 - You have access to execute actions for the following connections (only show the latest 5 connections and tell the user to ask for more for a platform if they need them):
 ${connectionsInfo}
+
+- Here are the proper platform names (according to Pica) to use for tools:
+${availablePlatformsInfo}
 `;
     return prompt;
   }
@@ -392,7 +419,7 @@ ${connectionsInfo}
               success: false,
               title: "Failed to get available actions",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         },
@@ -422,7 +449,7 @@ ${connectionsInfo}
               success: false,
               title: "Failed to get action knowledge",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         }
@@ -516,7 +543,7 @@ ${connectionsInfo}
               success: false,
               title: "Failed to execute action",
               message: error.message,
-              raw: JSON.stringify(error)
+              raw: JSON.stringify(error?.response?.data || error)
             };
           }
         }
