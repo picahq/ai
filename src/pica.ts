@@ -1,5 +1,6 @@
 import axios from "axios";
 import { z } from "zod";
+import FormData from 'form-data';
 
 import {
   AvailableActions,
@@ -186,6 +187,7 @@ Your capabilities must be used in this exact sequence FOR EACH EXECUTION:
      * data: The request payload (optional)
      * pathVariables: Values for path variables (if needed)
      * queryParams: Query parameters (if needed)
+     * isFormData: Set to true to send data as multipart/form-data
 
 WORKFLOW (MUST FOLLOW THIS ORDER FOR EACH PLATFORM):
 1. For ANY user request:
@@ -341,7 +343,9 @@ ${availablePlatformsInfo}
     data: any,
     path: string,
     method?: string,
-    queryParams?: Record<string, string | number | boolean>
+    queryParams?: Record<string, string | number | boolean>,
+    headers?: Record<string, string | number | boolean>,
+    isFormData?: boolean
   ): Promise<{
     responseData: unknown;
     requestConfig: RequestConfig;
@@ -350,7 +354,8 @@ ${availablePlatformsInfo}
       const headers = {
         ...this.generateHeaders(),
         'x-pica-connection-key': connectionKey,
-        'x-pica-action-id': actionId
+        'x-pica-action-id': actionId,
+        ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {})
       };
 
       const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
@@ -363,7 +368,25 @@ ${availablePlatformsInfo}
       };
 
       if (method?.toLowerCase() !== 'get') {
-        requestConfig.data = data;
+        if (isFormData) {
+          const formData = new FormData();
+
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            Object.entries(data).forEach(([key, value]) => {
+              if (typeof value === 'object') {
+                formData.append(key, JSON.stringify(value));
+              } else {
+                formData.append(key, value);
+              }
+            });
+          }
+
+          requestConfig.data = formData;
+
+          Object.assign(requestConfig.headers, formData.getHeaders());
+        } else {
+          requestConfig.data = data;
+        }
       }
 
       const response = await axios(requestConfig);
@@ -467,6 +490,8 @@ ${availablePlatformsInfo}
           data: z.any(),
           pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
           queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+          headers: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+          isFormData: z.boolean().optional(),
         }),
         execute: async (params: {
           platform: string;
@@ -479,6 +504,8 @@ ${availablePlatformsInfo}
           data?: any;
           pathVariables?: Record<string, string | number | boolean>;
           queryParams?: Record<string, string | number | boolean>;
+          headers?: Record<string, string | number | boolean>;
+          isFormData?: boolean;
         }) => {
           try {
             const fullAction = await this.getSingleAction(params.action._id);
@@ -524,7 +551,9 @@ ${availablePlatformsInfo}
               params.data,
               resolvedPath,
               params.method,
-              params.queryParams
+              params.queryParams,
+              params.headers,
+              params.isFormData
             );
 
             return {
