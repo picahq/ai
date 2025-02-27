@@ -194,8 +194,9 @@ WORKFLOW (MUST FOLLOW THIS ORDER FOR EACH PLATFORM):
    a. FIRST: Call getAvailableActions to list what's possible
    b. THEN: Identify the appropriate action from the list
    c. NEXT: Call getActionKnowledge to get full details
-   d. FINALLY: Execute with proper parameters
-   e. Only after completing all steps, consider if another platform is needed
+   d. NEXT: Verify that the connection exists in the available connections list below in the IMPORTANT GUIDELINES section
+   e. FINALLY: Execute with proper parameters
+   f. Only after completing all steps, consider if another platform is needed
 
 2. Knowledge Parsing:
    - After getting knowledge, analyze it to understand:
