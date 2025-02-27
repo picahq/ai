@@ -512,7 +512,7 @@ ${availablePlatformsInfo}
         }) => {
           try {
             if (!this.connections.some(conn => conn.key === params.connectionKey)) {
-              throw new Error(`Connection key ${params.connectionKey} not found. Please add a ${params.platform} connection first.`);
+              throw new Error(`Connection not found. Please add a ${params.platform} connection first.`);
             }
 
             const fullAction = await this.getSingleAction(params.action._id);
