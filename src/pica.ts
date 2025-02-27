@@ -290,7 +290,7 @@ ${availablePlatformsInfo}
           skip: number,
           limit: number
         }>(
-          `${this.availableActionsUrl}?connectionPlatform=${platform}&skip=${skip}&limit=${limit}`,
+          `${this.availableActionsUrl}?supported=true&connectionPlatform=${platform}&skip=${skip}&limit=${limit}`,
           { headers: this.generateHeaders() }
         ).then(response => response.data);
 
