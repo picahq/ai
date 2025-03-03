@@ -348,17 +348,20 @@ ${availablePlatformsInfo}
     method?: string,
     queryParams?: Record<string, string | number | boolean>,
     headers?: Record<string, string | number | boolean>,
-    isFormData?: boolean
+    isFormData?: boolean,
+    isFormUrlEncoded?: boolean
   ): Promise<{
     responseData: unknown;
     requestConfig: RequestConfig;
   }> {
     try {
-      const headers = {
+      const newHeaders = {
         ...this.generateHeaders(),
         'x-pica-connection-key': connectionKey,
         'x-pica-action-id': actionId,
-        ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {})
+        ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {}),
+        ...(isFormUrlEncoded ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+        ...headers
       };
 
       const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
@@ -366,7 +369,7 @@ ${availablePlatformsInfo}
       const requestConfig: RequestConfig = {
         url,
         method,
-        headers,
+        headers: newHeaders,
         params: queryParams
       };
 
@@ -387,6 +390,20 @@ ${availablePlatformsInfo}
           requestConfig.data = formData;
 
           Object.assign(requestConfig.headers, formData.getHeaders());
+        } else if (isFormUrlEncoded) {
+          const params = new URLSearchParams();
+
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            Object.entries(data).forEach(([key, value]) => {
+              if (typeof value === 'object') {
+                params.append(key, JSON.stringify(value));
+              } else {
+                params.append(key, String(value));
+              }
+            });
+          }
+
+          requestConfig.data = params;
         } else {
           requestConfig.data = data;
         }
@@ -495,6 +512,7 @@ ${availablePlatformsInfo}
           queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
           headers: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
           isFormData: z.boolean().optional(),
+          isFormUrlEncoded: z.boolean().optional(),
         }),
         execute: async (params: {
           platform: string;
@@ -509,6 +527,7 @@ ${availablePlatformsInfo}
           queryParams?: Record<string, string | number | boolean>;
           headers?: Record<string, string | number | boolean>;
           isFormData?: boolean;
+          isFormUrlEncoded?: boolean;
         }) => {
           try {
             if (!this.connections.some(conn => conn.key === params.connectionKey)) {
@@ -560,7 +579,8 @@ ${availablePlatformsInfo}
               params.method,
               params.queryParams,
               params.headers,
-              params.isFormData
+              params.isFormData,
+              params.isFormUrlEncoded
             );
 
             return {
