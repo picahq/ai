@@ -516,8 +516,8 @@ ${availablePlatformsInfo}
           connectionKey: z.string(),
           data: z.any(),
           pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-          queryParams: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-          headers: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+          queryParams: z.record(z.any()).optional(),
+          headers: z.record(z.any()).optional(),
           isFormData: z.boolean().optional(),
           isFormUrlEncoded: z.boolean().optional(),
         }),
@@ -531,8 +531,8 @@ ${availablePlatformsInfo}
           connectionKey: string;
           data?: any;
           pathVariables?: Record<string, string | number | boolean>;
-          queryParams?: Record<string, string | number | boolean>;
-          headers?: Record<string, string | number | boolean>;
+          queryParams?: Record<string, any>;
+          headers?: Record<string, any>;
           isFormData?: boolean;
           isFormUrlEncoded?: boolean;
         }) => {
