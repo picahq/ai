@@ -12,6 +12,8 @@ import {
 interface PicaOptions {
   connectors?: string[];
   serverUrl?: string;
+  identity?: string;
+  identityType?: "user" | "team" | "organization";
 }
 
 export class Pica {
@@ -20,6 +22,8 @@ export class Pica {
   private connectionDefinitions: ConnectionDefinition[];
   private systemPromptValue: string;
   private initialized: Promise<void>;
+  private identityType?: string;
+  private identity?: string;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
@@ -31,6 +35,8 @@ export class Pica {
     this.connections = [];
     this.connectionDefinitions = [];
     this.systemPromptValue = this.getDefaultSystemPrompt('Loading connections...');
+    this.identityType = options?.identityType;
+    this.identity = options?.identity;
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
@@ -99,7 +105,17 @@ ${this.system.trim()}
     try {
       const headers = this.generateHeaders();
 
-      const response = await axios.get(this.getConnectionUrl, { headers });
+      let url = this.getConnectionUrl;
+
+      if (this.identityType) {
+        url += `&identityType=${encodeURIComponent(this.identityType)}`;
+      }
+
+      if (this.identity) {
+        url += `&identity=${encodeURIComponent(this.identity)}`;
+      }
+
+      const response = await axios.get(url, { headers });
       this.connections = response.data?.rows || [];
     } catch (error) {
       console.error("Failed to initialize connections:", error);
