@@ -17,6 +17,16 @@ npm install @picahq/ai
 3. Create a [Pica API key](https://app.picaos.com/settings/api-keys)
 4. Set the API key as an environment variable: `PICA_SECRET_KEY=<your-api-key>`
 
+## Configuration
+
+The Pica SDK can be configured with the following options:
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| serverUrl | String | No | https://api.picaos.com | URL for self-hosted Pica server |
+| connectors | String[] | No | - | List of connector keys to filter by. Pass ["*"] to initialize all available connectors, or specific connector keys to filter. If empty, no connections will be initialized |
+| identity | String | No | None | Filter connections by specific identifier |
+| identityType | `"user"` \| `"team"` \| `"organization"` | No | None | Filter connections by identity type |
 
 ## Usage
 
