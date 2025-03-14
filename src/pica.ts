@@ -22,8 +22,8 @@ export class Pica {
   private connectionDefinitions: ConnectionDefinition[];
   private systemPromptValue: string;
   private initialized: Promise<void>;
-  private identityType?: string;
   private identity?: string;
+  private identityType?: string;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
@@ -35,8 +35,8 @@ export class Pica {
     this.connections = [];
     this.connectionDefinitions = [];
     this.systemPromptValue = this.getDefaultSystemPrompt('Loading connections...');
-    this.identityType = options?.identityType;
     this.identity = options?.identity;
+    this.identityType = options?.identityType;
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
@@ -49,10 +49,14 @@ export class Pica {
       .then(() => {
         let filteredConnections = this.connections.filter((conn: any) => conn.active);
 
-        if (options?.connectors) {
-          filteredConnections = filteredConnections.filter((conn: any) =>
-            options.connectors!.includes(conn.key)
-          );
+        if (options?.connectors?.length) {
+          if (!options.connectors.includes("*")) {
+            filteredConnections = filteredConnections.filter(conn =>
+              options.connectors!.includes(conn.key)
+            );
+          }
+        } else {
+          filteredConnections = [];
         }
 
         const connectionsInfo = filteredConnections.length > 0
@@ -107,12 +111,11 @@ ${this.system.trim()}
 
       let url = this.getConnectionUrl;
 
-      if (this.identityType) {
-        url += `&identityType=${encodeURIComponent(this.identityType)}`;
-      }
-
       if (this.identity) {
         url += `&identity=${encodeURIComponent(this.identity)}`;
+      }
+      if (this.identityType) {
+        url += `&identityType=${encodeURIComponent(this.identityType)}`;
       }
 
       const response = await axios.get(url, { headers });
