@@ -27,6 +27,7 @@ The Pica SDK can be configured with the following options:
 | connectors | String[] | No | - | List of connector keys to filter by. Pass ["*"] to initialize all available connectors, or specific connector keys to filter. If empty, no connections will be initialized |
 | identity | String | No | None | Filter connections by specific identifier |
 | identityType | `"user"` \| `"team"` \| `"organization"` | No | None | Filter connections by identity type |
+| authkit | Boolean | No | false | If true, the SDK will use Authkit to connect to prompt the user to connect to a platform that they do not currently have access to |
 
 ## Usage
 
@@ -134,5 +135,3 @@ export async function POST(request: Request) {
 ```
 
 > ⭐️ You can see a full Next.js demo of the Pica AI SDK in action [here](https://github.com/picahq/onetool-demo)
-
-
