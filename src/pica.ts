@@ -10,6 +10,7 @@ import {
 } from "./types/connection";
 import { getDefaultSystemPrompt } from "./prompts/defaultSystem";
 import { getDefaultSystemWithAuthkitPrompt } from "./prompts/defaultSystemWithAuthkit";
+import { getKnowledgeAgentSystemPrompt } from "./prompts/knowledgeAgentSystem";
 
 interface PicaOptions {
   connectors?: string[];
@@ -17,6 +18,7 @@ interface PicaOptions {
   identity?: string;
   identityType?: "user" | "team" | "organization";
   authkit?: boolean;
+  knowledgeAgent?: boolean;
 }
 
 export class Pica {
@@ -28,6 +30,7 @@ export class Pica {
   private identity?: string;
   private identityType?: string;
   private useAuthkit: boolean;
+  private useKnowledgeAgent: boolean;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
@@ -42,6 +45,7 @@ export class Pica {
     this.identity = options?.identity;
     this.identityType = options?.identityType;
     this.useAuthkit = options?.authkit || false;
+    this.useKnowledgeAgent = options?.knowledgeAgent || false;
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
@@ -74,9 +78,11 @@ export class Pica {
           `\n\t* ${def.platform} (${def.frontend.spec.title})`
         ).join('');
 
-        // Choose the appropriate system prompt based on authkit option
+        // Choose the appropriate system prompt based on options
         if (this.useAuthkit) {
           this.systemPromptValue = getDefaultSystemWithAuthkitPrompt(connectionsInfo, availablePlatformsInfo);
+        } else if (this.useKnowledgeAgent) {
+          this.systemPromptValue = getKnowledgeAgentSystemPrompt(connectionsInfo, availablePlatformsInfo);
         } else {
           this.systemPromptValue = getDefaultSystemPrompt(connectionsInfo, availablePlatformsInfo);
         }
@@ -252,9 +258,14 @@ ${this.system.trim()}
     queryParams?: Record<string, string | number | boolean>,
     headers?: Record<string, string | number | boolean>,
     isFormData?: boolean,
-    isFormUrlEncoded?: boolean
+    isFormUrlEncoded?: boolean,
+    returnRequestConfigWithoutExecution?: boolean
   ): Promise<{
+    executed: boolean;
     responseData: unknown;
+    requestConfig: RequestConfig;
+  } | {
+    executed: false;
     requestConfig: RequestConfig;
   }> {
     try {
@@ -312,9 +323,19 @@ ${this.system.trim()}
         }
       }
 
+      if (returnRequestConfigWithoutExecution) {
+        requestConfig.headers['x-pica-secret'] = "YOUR_SECRET_KEY_HERE";
+
+        return {
+          executed: false,
+          requestConfig
+        };
+      }
+
       const response = await axios(requestConfig);
 
       return {
+        executed: true,
         responseData: response.data,
         requestConfig
       };
@@ -332,6 +353,115 @@ ${this.system.trim()}
       }
       return value.toString();
     });
+  }
+
+  get intelligenceTool() {
+    return {
+      getAvailableActions: this.oneTool.getAvailableActions,
+      getActionKnowledge: this.oneTool.getActionKnowledge,
+      execute: {
+        description: "Return a request config to the Pica Passthrough API without executing the action. Show the user a typescript code block to make an HTTP request to the Pica Passthrough API using the request config.",
+        parameters: z.object({
+          platform: z.string(),
+          action: z.object({
+            _id: z.string(),
+            path: z.string()
+          }),
+          method: z.string(),
+          connectionKey: z.string(),
+          data: z.any(),
+          pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+          queryParams: z.record(z.any()).optional(),
+          headers: z.record(z.any()).optional(),
+          isFormData: z.boolean().optional(),
+          isFormUrlEncoded: z.boolean().optional(),
+        }),
+        execute: async (params: {
+          platform: string;
+          action: {
+            _id: string;
+            path: string;
+          };
+          method: string;
+          connectionKey: string;
+          data?: any;
+          pathVariables?: Record<string, string | number | boolean>;
+          queryParams?: Record<string, any>;
+          headers?: Record<string, any>;
+          isFormData?: boolean;
+          isFormUrlEncoded?: boolean;
+        }) => {
+          try {
+            if (!this.connections.some(conn => conn.key === params.connectionKey)) {
+              throw new Error(`Connection not found. Please add a ${params.platform} connection first.`);
+            }
+
+            // Handle path variables
+            const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
+            let resolvedPath = params.action.path;
+
+            if (templateVariables) {
+              const requiredVariables = templateVariables.map(v => v.replace(/\{\{|\}\}/g, ''));
+              const combinedVariables = {
+                ...(Array.isArray(params.data) ? {} : (params.data || {})),
+                ...(params.pathVariables || {})
+              };
+
+              const missingVariables = requiredVariables.filter(v => !combinedVariables[v]);
+
+              if (missingVariables.length > 0) {
+                throw new Error(
+                  `Missing required path variables: ${missingVariables.join(', ')}. ` +
+                  `Please provide values for these variables.`
+                );
+              }
+
+              // Clean up data object and prepare path variables
+              if (!Array.isArray(params.data)) {
+                requiredVariables.forEach(v => {
+                  if (params.data && params.data[v] && (!params.pathVariables || !params.pathVariables[v])) {
+                    if (!params.pathVariables) params.pathVariables = {};
+                    params.pathVariables[v] = params.data[v];
+                    delete params.data[v];
+                  }
+                });
+              }
+
+              resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
+            }
+
+            // Execute the passthrough request with all components
+            const result = await this.executePassthrough(
+              params.action._id,
+              params.connectionKey,
+              params.data,
+              resolvedPath,
+              params.method,
+              params.queryParams,
+              params.headers,
+              params.isFormData,
+              params.isFormUrlEncoded,
+              true
+            );
+
+            return {
+              success: true,
+              title: "Request config returned",
+              message: "Request config returned without execution",
+              raw: JSON.stringify(result.requestConfig)
+            };
+          } catch (error: any) {
+            console.error("Error creating request config:", error);
+            return {
+              success: false,
+              title: "Failed to create request config",
+              message: error.message,
+              raw: JSON.stringify(error?.response?.data || error)
+            };
+          }
+        }
+      }
+    }
   }
 
   get oneTool() {
@@ -488,7 +618,7 @@ ${this.system.trim()}
 
             return {
               success: true,
-              data: result.responseData,
+              data: result.requestConfig ? result.requestConfig : undefined,
               connectionKey: params.connectionKey,
               platform: params.platform,
               action: fullAction.title,
