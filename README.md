@@ -30,6 +30,7 @@ The Pica SDK can be configured with the following options:
 | identity | String | No | None | Filter connections by specific identifier |
 | identityType | `"user"` \| `"team"` \| `"organization"` | No | None | Filter connections by identity type |
 | authkit | Boolean | No | false | If true, the SDK will use Authkit to connect to prompt the user to connect to a platform that they do not currently have access to |
+| knowledgeAgent | Boolean | No | false | If true, the SDK will never execute actions, but will use Pica's knowledge to generate code. If true, use pica.intelligenceTool instead of pica.oneTool |
 
 ## Usage
 
