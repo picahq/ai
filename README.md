@@ -1,5 +1,7 @@
 # Pica AI SDK
 
+[![npm version](https://img.shields.io/npm/v/%40picahq%2Fai)](https://npmjs.com/package/@picahq/ai)
+
 The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI SDK](https://www.npmjs.com/package/ai).
 
 ![Pica OneTool](./onetool.svg)
