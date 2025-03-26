@@ -11,6 +11,7 @@ import {
 import { getDefaultSystemPrompt } from "./prompts/defaultSystem";
 import { getDefaultSystemWithAuthkitPrompt } from "./prompts/defaultSystemWithAuthkit";
 import { getKnowledgeAgentSystemPrompt } from "./prompts/knowledgeAgentSystem";
+import { getKnowledgeAgentWithAuthkitSystemPrompt } from "./prompts/knowledgeAgentWithAuthkitSystem";
 
 interface PicaOptions {
   connectors?: string[];
@@ -79,7 +80,9 @@ export class Pica {
         ).join('');
 
         // Choose the appropriate system prompt based on options
-        if (this.useAuthkit) {
+        if (this.useAuthkit && this.useKnowledgeAgent) {
+          this.systemPromptValue = getKnowledgeAgentWithAuthkitSystemPrompt(connectionsInfo, availablePlatformsInfo);
+        } else if (this.useAuthkit) {
           this.systemPromptValue = getDefaultSystemWithAuthkitPrompt(connectionsInfo, availablePlatformsInfo);
         } else if (this.useKnowledgeAgent) {
           this.systemPromptValue = getKnowledgeAgentSystemPrompt(connectionsInfo, availablePlatformsInfo);
@@ -355,8 +358,24 @@ ${this.system.trim()}
     });
   }
 
-  get intelligenceTool() {
+  private getPromptToConnectPlatformTool() {
     return {
+      promptToConnectPlatform: {
+        description: "Prompt the user to connect to a platform that they do not currently have access to",
+        parameters: z.object({
+          platformName: z.string(),
+        }),
+        execute: async ({ platformName }: { platformName: string }) => {
+          return {
+            response: platformName
+          };
+        }
+      }
+    }
+  }
+
+  get intelligenceTool() {
+    const baseTool = {
       getAvailableActions: this.oneTool.getAvailableActions,
       getActionKnowledge: this.oneTool.getActionKnowledge,
       execute: {
@@ -461,7 +480,17 @@ ${this.system.trim()}
           }
         }
       }
+    };
+
+    // Add the promptToConnectPlatform tool if authkit is enabled
+    if (this.useAuthkit) {
+      return {
+        ...baseTool,
+        ...this.getPromptToConnectPlatformTool()
+      };
     }
+
+    return baseTool;
   }
 
   get oneTool() {
@@ -643,17 +672,7 @@ ${this.system.trim()}
     if (this.useAuthkit) {
       return {
         ...baseTool,
-        promptToConnectPlatform: {
-          description: "Prompt the user to connect to a platform that they do not currently have access to",
-          parameters: z.object({
-            platformName: z.string(),
-          }),
-          execute: async ({ platformName }: { platformName: string }) => {
-            return {
-              response: platformName
-            };
-          }
-        }
+        ...this.getPromptToConnectPlatformTool()
       };
     }
 

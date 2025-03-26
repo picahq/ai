@@ -1,6 +1,6 @@
 {
     "name": "@picahq/ai",
-    "version": "2.3.1",
+    "version": "2.3.2",
     "description": "Pica AI SDK for Vercel AI SDK integration",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -17,7 +17,6 @@
     "author": "Pica",
     "license": "GPL-3.0",
     "dependencies": {
-        "@picahq/unified": "^1.0.0",
         "axios": "^1.8.2",
         "zod": "^3.24.1"
     },
