@@ -54,7 +54,7 @@ export class Pica {
 
     this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=300`;
     this.availableActionsUrl = `${this.baseUrl}/v1/knowledge`;
-    this.getConnectionDefinitionsUrl = `${this.baseUrl}/v1/public/connection-definitions?limit=500`;
+    this.getConnectionDefinitionsUrl = `${this.baseUrl}/v1/available-connectors?limit=500`;
     this.initialized = this.initialize()
       .then(() => {
         let filteredConnections = this.connections.filter((conn: any) => conn.active);
@@ -76,7 +76,7 @@ export class Pica {
           : 'No connections available';
 
         const availablePlatformsInfo = this.connectionDefinitions.map((def) =>
-          `\n\t* ${def.platform} (${def.frontend.spec.title})`
+          `\n\t* ${def.platform} (${def.name})`
         ).join('');
 
         // Choose the appropriate system prompt based on options
@@ -214,6 +214,11 @@ ${this.system.trim()}
       console.error("Error fetching all available actions:", error);
       throw new Error("Failed to fetch all available actions");
     }
+  }
+
+  public async getAvailablePicaConnectors() {
+    await this.initializeConnectionDefinitions();
+    return this.connectionDefinitions;
   }
 
   private async getSingleAction(actionId: string): Promise<AvailableActions> {
