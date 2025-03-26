@@ -124,11 +124,15 @@ ${this.system.trim()}
     return this.system;
   }
 
-  private async initializeConnections() {
+  private async initializeConnections(platform?: string) {
     try {
       const headers = this.generateHeaders();
 
       let url = this.getConnectionUrl;
+
+      if (platform) {
+        url += `&platform=${platform}`;
+      }
 
       if (this.identity) {
         url += `&identity=${encodeURIComponent(this.identity)}`;
@@ -219,6 +223,11 @@ ${this.system.trim()}
   public async getAvailablePicaConnectors() {
     await this.initializeConnectionDefinitions();
     return this.connectionDefinitions;
+  }
+
+  public async getAvailableConnectors(platform?: string) {
+    await this.initializeConnections(platform);
+    return this.connections;
   }
 
   private async getSingleAction(actionId: string): Promise<AvailableActions> {
