@@ -68,7 +68,9 @@ app.post("/api/ai", async (req, res) => {
     const pica = new Pica(process.env.PICA_SECRET_KEY);
 
     // Generate the system prompt
-    const systemPrompt = await pica.generateSystemPrompt();
+    const systemPrompt = await pica.generateSystemPrompt(
+      // Optional: Custom system prompt to append
+    );
 
     // Create the stream
     const { text } = await generateText({
@@ -118,15 +120,10 @@ export async function POST(request: Request) {
 
   const pica = new Pica(process.env.PICA_SECRET_KEY as string);
 
-  // Optional: Custom server url for self-hosted Pica
-  // const pica = new Pica(process.env.PICA_SECRET_KEY as string, {
-  //   serverUrl: "http://localhost:3000",
-  // });
-
   const systemPrompt = await pica.generateSystemPrompt();
 
   const stream = streamText({
-    model: openai("gpt-4"),
+    model: openai("gpt-4o"),
     system: systemPrompt,
     tools: { ...pica.oneTool },
     messages: convertToCoreMessages(messages),
