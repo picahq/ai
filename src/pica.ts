@@ -656,12 +656,13 @@ ${this.system.trim()}
               params.queryParams,
               params.headers,
               params.isFormData,
-              params.isFormUrlEncoded
+              params.isFormUrlEncoded,
+              false
             );
 
             return {
               success: true,
-              data: result.requestConfig ? result.requestConfig : undefined,
+              data: result.executed ? result.responseData : undefined,
               connectionKey: params.connectionKey,
               platform: params.platform,
               action: fullAction.title,
