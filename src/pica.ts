@@ -17,7 +17,7 @@ interface PicaOptions {
   connectors?: string[];
   serverUrl?: string;
   identity?: string;
-  identityType?: "user" | "team" | "organization";
+  identityType?: "user" | "team" | "organization" | "project";
   authkit?: boolean;
   knowledgeAgent?: boolean;
 }
