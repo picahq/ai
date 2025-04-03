@@ -65,7 +65,9 @@ app.post("/api/ai", async (req, res) => {
     const { message } = req.body;
 
     // Initialize Pica
-    const pica = new Pica(process.env.PICA_SECRET_KEY);
+    const pica = new Pica(process.env.PICA_SECRET_KEY, {
+      connectors: ["*"],
+    });
 
     // Generate the system prompt
     const systemPrompt = await pica.generateSystemPrompt(
@@ -118,7 +120,9 @@ import { Pica } from "@picahq/ai";
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
-  const pica = new Pica(process.env.PICA_SECRET_KEY as string);
+  const pica = new Pica(process.env.PICA_SECRET_KEY as string, {
+    connectors: ["*"],
+  });
 
   const systemPrompt = await pica.generateSystemPrompt();
 
