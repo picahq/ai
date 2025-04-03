@@ -425,7 +425,7 @@ ${this.system.trim()}
           isFormUrlEncoded?: boolean;
         }) => {
           try {
-            if (!this.connections.some(conn => conn.key === params.connectionKey)) {
+            if (!this.connections.some(conn => conn.key === params.connectionKey) && this.useAuthkit) {
               throw new Error(`Connection not found. Please add a ${params.platform} connection first.`);
             }
 
