@@ -163,9 +163,6 @@ You MUST follow this exact sequence for EACH EXECUTION:
 
 ## IMPORTANT GUIDELINES
 
-- You have access to execute actions only for the following connections (showing latest 5 - instruct user to ask for more if needed):
-${connectionsInfo}
-
 - Use these proper platform names (according to Pica) for tools:
 ${availablePlatformsInfo}
 `;
