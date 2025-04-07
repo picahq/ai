@@ -18,7 +18,7 @@ Your task is to:
    - **Method**: \`GET | POST | PUT | DELETE | etc.\`
    - **Required Headers**:
      - \`x-pica-secret: <PICA_SECRET_KEY>\` (from environment variables)
-     - \`x-pica-connection-key: <PICA_CONNECTION_KEY>\` (from environment variables)
+     - \`x-pica-connection-key: <PICA_[PLATFORM]_CONNECTION_KEY>\` (from environment variables)
      - \`x-pica-action-id: <ACTION_ID>\` (from action object)
 
 ## Output Structure
