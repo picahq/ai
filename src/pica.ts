@@ -20,6 +20,11 @@ interface PicaOptions {
   identityType?: "user" | "team" | "organization" | "project";
   authkit?: boolean;
   knowledgeAgent?: boolean;
+  knowledgeAgentConfig?: KnowledgeAgentConfig;
+}
+
+interface KnowledgeAgentConfig {
+  includeEnvironmentVariables: boolean;
 }
 
 export class Pica {
@@ -32,6 +37,7 @@ export class Pica {
   private identityType?: string;
   private useAuthkit: boolean;
   private useKnowledgeAgent: boolean;
+  private knowledgeAgentConfig?: KnowledgeAgentConfig;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
@@ -47,6 +53,9 @@ export class Pica {
     this.identityType = options?.identityType;
     this.useAuthkit = options?.authkit || false;
     this.useKnowledgeAgent = options?.knowledgeAgent || false;
+    this.knowledgeAgentConfig = options?.knowledgeAgentConfig || {
+      includeEnvironmentVariables: true
+    };
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
@@ -79,13 +88,18 @@ export class Pica {
           `\n\t* ${def.platform} (${def.name})`
         ).join('');
 
+
+        if (options?.knowledgeAgentConfig && !this.useKnowledgeAgent) {
+          throw new Error("Cannot provide Knowledge Agent configuration when Knowledge Agent is disabled. Please set useKnowledgeAgent to true if you want to use the Knowledge Agent.");
+        }
+
         // Choose the appropriate system prompt based on options
         if (this.useAuthkit && this.useKnowledgeAgent) {
-          this.systemPromptValue = getKnowledgeAgentWithAuthkitSystemPrompt(connectionsInfo, availablePlatformsInfo);
+          this.systemPromptValue = getKnowledgeAgentWithAuthkitSystemPrompt(connectionsInfo, availablePlatformsInfo, this.knowledgeAgentConfig?.includeEnvironmentVariables);
         } else if (this.useAuthkit) {
           this.systemPromptValue = getDefaultSystemWithAuthkitPrompt(connectionsInfo, availablePlatformsInfo);
         } else if (this.useKnowledgeAgent) {
-          this.systemPromptValue = getKnowledgeAgentSystemPrompt(connectionsInfo, availablePlatformsInfo);
+          this.systemPromptValue = getKnowledgeAgentSystemPrompt(connectionsInfo, availablePlatformsInfo, this.knowledgeAgentConfig?.includeEnvironmentVariables);
         } else {
           this.systemPromptValue = getDefaultSystemPrompt(connectionsInfo, availablePlatformsInfo);
         }
