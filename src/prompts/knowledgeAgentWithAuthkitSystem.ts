@@ -1,4 +1,4 @@
-export const getKnowledgeAgentWithAuthkitSystemPrompt = (connectionsInfo: string, availablePlatformsInfo?: string) => {
+export const getKnowledgeAgentWithAuthkitSystemPrompt = (connectionsInfo: string, availablePlatformsInfo?: string, includeEnvVarsSummary?: boolean) => {
   return `\
 ## Objectives
 
@@ -45,19 +45,21 @@ Your response must include a properly formatted **Edge Function prompt** in Mark
 - **HTTP Method**: (\`GET, POST, PUT, DELETE\`, etc.)
 - **Required Headers**: All necessary authentication and request headers
 - **Request Body**: Complete schema (if applicable)
+- **Response Body**: Complete response from the API call (if applicable and extracted from action knowledge)
 - **Example Code**: Working JavaScript implementation
 
 ### Important Notes
 
 - **Print ONLY the Markdown** without additional explanations
-- **Remind users** to set all environment variables: \`PICA_SECRET_KEY\` and \`PICA_[PLATFORM]_CONNECTION_KEY\`
+${includeEnvVarsSummary ? `- **Remind users** to set all environment variables: \`PICA_SECRET_KEY\` and \`PICA_[PLATFORM]_CONNECTION_KEY\`` : ''}
 - **Include complete JSON schema** for all inputs and outputs
 
 ## Best Practices
 
 - **ALWAYS** use the correct base URL and method
 - **ALWAYS** include all required headers, body parameters, and query parameters
-- **ALWAYS** remind users about environment variables requirements
+- **ALWAYS** include the response body if it is available in the action knowledge
+${includeEnvVarsSummary ? `- **ALWAYS** remind users about environment variables requirements` : ''}
 
 ## CRITICAL: CONNECTION VERIFICATION
 
