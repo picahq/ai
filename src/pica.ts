@@ -61,9 +61,9 @@ export class Pica {
       this.baseUrl = options.serverUrl;
     }
 
-    this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections?limit=300`;
+    this.getConnectionUrl = `${this.baseUrl}/v1/vault/connections`;
     this.availableActionsUrl = `${this.baseUrl}/v1/knowledge`;
-    this.getConnectionDefinitionsUrl = `${this.baseUrl}/v1/available-connectors?limit=500`;
+    this.getConnectionDefinitionsUrl = `${this.baseUrl}/v1/available-connectors`;
     this.initialized = this.initialize()
       .then(() => {
         let filteredConnections = this.connections.filter((conn: any) => conn.active);
@@ -142,21 +142,32 @@ ${this.system.trim()}
     try {
       const headers = this.generateHeaders();
 
-      let url = this.getConnectionUrl;
+      let baseUrl = `${this.baseUrl}/v1/vault/connections`;
 
       if (platform) {
-        url += `&platform=${platform}`;
+        baseUrl += `&platform=${platform}`;
       }
 
       if (this.identity) {
-        url += `&identity=${encodeURIComponent(this.identity)}`;
-      }
-      if (this.identityType) {
-        url += `&identityType=${encodeURIComponent(this.identityType)}`;
+        baseUrl += `&identity=${encodeURIComponent(this.identity)}`;
       }
 
-      const response = await axios.get(url, { headers });
-      this.connections = response.data?.rows || [];
+      if (this.identityType) {
+        baseUrl += `&identityType=${encodeURIComponent(this.identityType)}`;
+      }
+
+      const fetchPage = (skip: number, limit: number) =>
+        axios.get<{
+          rows: Connection[],
+          total: number,
+          skip: number,
+          limit: number
+        }>(
+          `${baseUrl}?limit=${limit}&skip=${skip}`,
+          { headers }
+        ).then(response => response.data);
+
+      this.connections = await this.paginateResults<Connection>(fetchPage);
     } catch (error) {
       console.error("Failed to initialize connections:", error);
       this.connections = [];
@@ -166,8 +177,19 @@ ${this.system.trim()}
   private async initializeConnectionDefinitions() {
     try {
       const headers = this.generateHeaders();
-      const response = await axios.get(this.getConnectionDefinitionsUrl, { headers });
-      this.connectionDefinitions = response.data?.rows || [];
+
+      const fetchPage = (skip: number, limit: number) =>
+        axios.get<{
+          rows: ConnectionDefinition[],
+          total: number,
+          skip: number,
+          limit: number
+        }>(
+          `${this.baseUrl}/v1/available-connectors?limit=${limit}&skip=${skip}`,
+          { headers }
+        ).then(response => response.data);
+
+      this.connectionDefinitions = await this.paginateResults<ConnectionDefinition>(fetchPage);
     } catch (error) {
       console.error("Failed to initialize connection definitions:", error);
       this.connectionDefinitions = [];
