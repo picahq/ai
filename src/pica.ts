@@ -143,17 +143,21 @@ ${this.system.trim()}
       const headers = this.generateHeaders();
 
       let baseUrl = `${this.baseUrl}/v1/vault/connections`;
+      let hasQueryParam = false;
 
       if (platform) {
-        baseUrl += `&platform=${platform}`;
+        baseUrl += `?platform=${platform}`;
+        hasQueryParam = true;
       }
 
       if (this.identity) {
-        baseUrl += `&identity=${encodeURIComponent(this.identity)}`;
+        baseUrl += hasQueryParam ? `&identity=${encodeURIComponent(this.identity)}` : `?identity=${encodeURIComponent(this.identity)}`;
+        hasQueryParam = true;
       }
 
       if (this.identityType) {
-        baseUrl += `&identityType=${encodeURIComponent(this.identityType)}`;
+        baseUrl += hasQueryParam ? `&identityType=${encodeURIComponent(this.identityType)}` : `?identityType=${encodeURIComponent(this.identityType)}`;
+        hasQueryParam = true;
       }
 
       const fetchPage = (skip: number, limit: number) =>
@@ -163,7 +167,7 @@ ${this.system.trim()}
           skip: number,
           limit: number
         }>(
-          `${baseUrl}?limit=${limit}&skip=${skip}`,
+          `${baseUrl}${hasQueryParam ? '&' : '?'}limit=${limit}&skip=${skip}`,
           { headers }
         ).then(response => response.data);
 
