@@ -182,6 +182,14 @@ ${this.system.trim()}
     try {
       const headers = this.generateHeaders();
 
+      let url = `${this.baseUrl}/v1/available-connectors`;
+      let hasQueryParam = false;
+
+      if (this.useAuthkit) {
+        url += `?authkit=true`;
+        hasQueryParam = true;
+      }
+
       const fetchPage = (skip: number, limit: number) =>
         axios.get<{
           rows: ConnectionDefinition[],
@@ -189,7 +197,7 @@ ${this.system.trim()}
           skip: number,
           limit: number
         }>(
-          `${this.baseUrl}/v1/available-connectors?limit=${limit}&skip=${skip}`,
+          `${url}${hasQueryParam ? '&' : '?'}limit=${limit}&skip=${skip}`,
           { headers }
         ).then(response => response.data);
 
