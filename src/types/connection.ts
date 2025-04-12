@@ -17,53 +17,21 @@ export interface RequestConfig {
 }
 
 export interface ConnectionDefinition {
-  authMethod: object | null;
-  _id: string;
-  platformVersion: string;
-  platform: string;
-  type: string;
   name: string;
-  authSecrets: any[];
-  frontend: {
-    spec: {
-      title: string;
-      description: string;
-      platform: string;
-      category: string;
-      image: string;
-      tags: string[];
-    };
-    connectionForm: {
-      name: string;
-      description: string;
-      formData: any[];
-    };
-  };
-  paths: {
-    id: string;
-    event: string;
-    payload: unknown;
-    timestamp: string;
-    secret: string;
-    signature: string;
-    cursor: string;
-  };
-  settings: {
-    parseWebhookBody: boolean;
-    showSecret: boolean;
-    allowCustomEvents: boolean;
-    oauth: boolean;
-  };
-  hidden: boolean;
-  testConnection: string | null;
+  key: string;
+  platform: string;
+  platformVersion: string;
+  description: string;
+  category: string;
+  image: string;
+  tags: string[];
+  oauth: boolean;
   createdAt: number;
   updatedAt: number;
   updated: boolean;
   version: string;
   lastModifiedBy: string;
   deleted: boolean;
-  changeLog: Record<string, any>;
-  tags: string[];
   active: boolean;
   deprecated: boolean;
 }
