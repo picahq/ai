@@ -6,7 +6,7 @@ The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI S
 
 ![Pica OneTool](https://assets.picaos.com/github/onetool.svg)
 
-Read the [documentation](https://docs.picaos.com/sdk/vercel-ai)
+For detailed instructions and examples, view the [documentation](https://docs.picaos.com/sdk/vercel-ai).
 
 ## Installation
 
@@ -14,7 +14,7 @@ Read the [documentation](https://docs.picaos.com/sdk/vercel-ai)
 npm install @picahq/ai
 ```
 
-# Setup
+## Setup
 
 1. Create a new [Pica account](https://app.picaos.com)
 2. Create a Connection via the [Pica Dashboard](https://app.picaos.com/connections)
@@ -37,83 +37,7 @@ The Pica SDK can be configured with the following options:
 
 ## Usage
 
-The Pica AI SDK is designed to work seamlessly with [Vercel AI SDK](https://www.npmjs.com/package/ai). Here's an example implementation:
-
-### Express Example
-
-1. **Install dependencies**
-
-```bash
-npm install express @ai-sdk/openai ai @picahq/ai dotenv
-```
-
-2. **Create the server**
-
-```typescript
-import express from "express";
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
-import { Pica } from "@picahq/ai";
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-const app = express();
-const port = process.env.PORT || 3000;
-
-app.use(express.json());
-
-app.post("/api/ai", async (req, res) => {
-  try {
-    const { message } = req.body;
-
-    // Initialize Pica
-    const pica = new Pica(process.env.PICA_SECRET_KEY, {
-      connectors: ["*"],
-    });
-
-    // Generate the system prompt
-    const systemPrompt = await pica.generateSystemPrompt(
-      // Optional: Custom system prompt to append
-    );
-
-    // Create the stream
-    const { text } = await generateText({
-      model: openai("gpt-4o"),
-      system: systemPrompt,
-      tools: { ...pica.oneTool },
-      prompt: message,
-      maxSteps: 5,
-    });
-
-    res.setHeader("Content-Type", "application/json");
-    
-    res.status(200).json({ text });
-  } catch (error) {
-    console.error("Error processing AI request:", error);
-
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
-
-export default app;
-```
-
-3. **Test the server**
-
-```bash
-curl --location 'http://localhost:3000/api/ai' \
---header 'Content-Type: application/json' \
---data '{
-    "message": "What connections do I have access to?"
-}'
-```
-
-### Next.js Example
+The Pica AI SDK is designed to work seamlessly with [Vercel AI SDK](https://www.npmjs.com/package/ai). Here's an example implementation with Next.js:
 
 ```typescript
 import { openai } from "@ai-sdk/openai";
@@ -123,7 +47,7 @@ import { Pica } from "@picahq/ai";
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
-  const pica = new Pica(process.env.PICA_SECRET_KEY as string, {
+  const pica = new Pica(process.env.PICA_SECRET_KEY!, {
     connectors: ["*"],
   });
 
@@ -134,11 +58,49 @@ export async function POST(request: Request) {
     system: systemPrompt,
     tools: { ...pica.oneTool },
     messages: convertToCoreMessages(messages),
-    maxSteps: 5,
+    maxSteps: 10,
   });
 
-  return (await stream).toDataStreamResponse();
+  return stream.toDataStreamResponse();
 }
 ```
 
 > ⭐️ You can see a full Next.js demo of the Pica AI SDK in action [here](https://github.com/picahq/onetool-demo)
+
+Examples for streaming and creating an express server can be found in the [examples](examples) directory.
+
+## 🚦 What can Pica do?
+
+Once you've installed the SDK and connected your platforms in the [Pica dashboard](https://app.picaos.com/connections), you can seamlessly build your own AI agents to automate your workflows. 
+
+Here's some inspiration:
+
+### Communication & Productivity
+- Send an email using Gmail to a colleague with a meeting summary
+- Create a calendar event in Google Calendar for next Tuesday at 2pm
+- Send a message in Slack to the #marketing channel with the latest campaign metrics
+- Find documents in Google Drive related to Q3 planning
+
+### Data Access & Analysis
+- List the top 10 customers from my PostgreSQL database
+- Create a new sheet in Google Sheets with sales data
+- Query Salesforce for opportunities closing this month
+- Update a Notion database with project statuses
+
+### Business Operations
+- Create a support ticket in Zendesk from customer feedback
+- Process a refund for a customer order in Stripe
+- Add a new lead to HubSpot from a website inquiry
+- Generate an invoice in QuickBooks for a client project
+
+### AI & Content
+- Generate an image with DALL-E based on product specifications
+- Transcribe a meeting recording with ElevenLabs
+- Research market trends using Tavily or SerpApi
+- Analyze customer sentiment from support tickets
+
+Got any cool examples? [Open a PR](https://github.com/picahq/awesome-pica) and share them!
+
+## License
+
+This project is licensed under the GPL-3.0 license. See the [LICENSE](LICENSE) file for details.
