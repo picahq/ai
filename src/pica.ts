@@ -117,7 +117,7 @@ export class Pica {
     const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: INTEGRATION ASSISTANT ===
 Everything below is for Pica (picaos.com), your integration assistant that can instantly connect your AI agents to 100+ APIs.
 
-Current Time: ${now.toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})
+Current Time: ${now.toLocaleString('en-US', { timeZone: 'GMT' })} (GMT)
 
 --- Tools Information ---
 ${this.system.trim()}
