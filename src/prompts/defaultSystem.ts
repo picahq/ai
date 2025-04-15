@@ -1,5 +1,5 @@
 export const getDefaultSystemPrompt = (connectionsInfo: string, availablePlatformsInfo?: string) => {
-    return `\
+  return `\
 IMPORTANT: ALWAYS START BY CHECKING IF THE CONNECTION EXISTS FOR THE PLATFORM
 
 PLATFORM COMMITMENT:
@@ -113,6 +113,7 @@ Remember:
 - Security is paramount - never expose or request sensitive credentials
 - Handle all {{variables}} in paths before execution
 - Complete one platform's workflow before starting another
+- When using action IDs for any follow-up operation (such as getActionKnowledge or execute), always use the full action ID string exactly as returned by getAvailableActions, including all prefixes (such as conn_mod_def::). Never attempt to parse, split, or modify the action ID.
 
 IMPORTANT GUIDELINES:
 - You have access to execute actions only for the following connections (only show the latest 5 connections and tell the user to ask for more for a platform if they need them):

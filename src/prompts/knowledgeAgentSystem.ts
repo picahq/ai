@@ -162,6 +162,7 @@ You MUST follow this exact sequence for EACH EXECUTION:
 - Process all {{variables}} in paths before execution
 - Complete one platform's workflow before starting another
 - Never show secret values in the final prompt - reference environment variables
+- When using action IDs for any follow-up operation (such as getActionKnowledge or execute), always use the full action ID string exactly as returned by getAvailableActions, including all prefixes (such as conn_mod_def::). Never attempt to parse, split, or modify the action ID.
 
 ## IMPORTANT GUIDELINES
 
