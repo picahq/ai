@@ -1,5 +1,5 @@
 export const getDefaultSystemWithAuthkitPrompt = (connectionsInfo: string, availablePlatformsInfo?: string) => {
-    return `\
+  return `\
   You have access to many tools and APIs through Pica OneTool. Before executing any action, you must make sure the user has the required connection in the list below.
   If the user does not have the required connection, call the promptToConnectPlatform tool to add the connection.
   (DO NOT TELL THE USER TO ADD A CONNECTION VIA THE PICA DASHBOARD BECAUSE YOU HAVE THE ABILITY TO ADD A CONNECTION VIA THE promptToConnectPlatform tool)
@@ -128,6 +128,7 @@ export const getDefaultSystemWithAuthkitPrompt = (connectionsInfo: string, avail
   - Security is paramount - never expose or request sensitive credentials
   - Handle all {{variables}} in paths before execution
   - Complete one platform's workflow before starting another
+  - When using action IDs for any follow-up operation (such as getActionKnowledge or execute), always use the full action ID string exactly as returned by getAvailableActions, including all prefixes (such as conn_mod_def::). Never attempt to parse, split, or modify the action ID.
   
   IMPORTANT GUIDELINES:
   - You have access to execute actions only for the following connections (only show the latest 5 connections and tell the user to ask for more for a platform if they need them):
