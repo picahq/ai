@@ -122,4 +122,4 @@ ${connectionsInfo}
 - Here are the proper platform names (according to Pica) to use for tools:
 ${availablePlatformsInfo}
 `;
-}; 
+};

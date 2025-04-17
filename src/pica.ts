@@ -278,20 +278,26 @@ ${this.system.trim()}
     return this.connections;
   }
 
+  private normalizeActionId(raw: string): string {
+    if (raw.startsWith("conn_mod_def::")) return raw;
+    return `conn_mod_def::${raw}`;
+  }
+
   private async getSingleAction(actionId: string): Promise<AvailableActions> {
     try {
+      const normalizedActionId = this.normalizeActionId(actionId);
       const response = await axios.get<{
         rows: AvailableActions[],
         total: number,
         skip: number,
         limit: number
       }>(
-        `${this.availableActionsUrl}?_id=${actionId}`,
+        `${this.availableActionsUrl}?_id=${normalizedActionId}`,
         { headers: this.generateHeaders() }
       );
 
       if (!response.data.rows || response.data.rows.length === 0) {
-        throw new Error(`Action with ID ${actionId} not found`);
+        throw new Error(`Action with ID ${normalizedActionId} not found`);
       }
 
       return response.data.rows[0];
@@ -511,9 +517,10 @@ ${this.system.trim()}
               resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
             }
 
+            const normalizedActionId = this.normalizeActionId(params.action._id);
             // Execute the passthrough request with all components
             const result = await this.executePassthrough(
-              params.action._id,
+              normalizedActionId,
               params.connectionKey,
               params.data,
               resolvedPath,
@@ -602,7 +609,8 @@ ${this.system.trim()}
           actionId: string;
         }) => {
           try {
-            const action = await this.getSingleAction(params.actionId);
+            const normalizedActionId = this.normalizeActionId(params.actionId);
+            const action = await this.getSingleAction(normalizedActionId);
 
             return {
               success: true,
@@ -658,7 +666,8 @@ ${this.system.trim()}
               throw new Error(`Connection not found. Please add a ${params.platform} connection first.`);
             }
 
-            const fullAction = await this.getSingleAction(params.action._id);
+            const normalizedActionId = this.normalizeActionId(params.action._id);
+            const fullAction = await this.getSingleAction(normalizedActionId);
 
             // Handle path variables
             const templateVariables = params.action.path.match(/\{\{([^}]+)\}\}/g);
@@ -696,7 +705,7 @@ ${this.system.trim()}
 
             // Execute the passthrough request with all components
             const result = await this.executePassthrough(
-              params.action._id,
+              normalizedActionId,
               params.connectionKey,
               params.data,
               resolvedPath,
