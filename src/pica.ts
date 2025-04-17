@@ -279,8 +279,13 @@ ${this.system.trim()}
   }
 
   private normalizeActionId(raw: string): string {
-    if (raw.startsWith("conn_mod_def::")) return raw;
-    return `conn_mod_def::${raw}`;
+    if (raw.includes("::")) {
+      if (!raw.startsWith("conn_mod_def::")) {
+        return `conn_mod_def::${raw}`;
+      }
+      return raw;
+    }
+    return raw;
   }
 
   private async getSingleAction(actionId: string): Promise<AvailableActions> {
