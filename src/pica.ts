@@ -261,7 +261,15 @@ ${this.system.trim()}
           { headers: this.generateHeaders() }
         ).then(response => response.data);
 
-      return await this.paginateResults<AvailableActions>(fetchPage);
+      const results = await this.paginateResults<AvailableActions>(fetchPage);
+
+      // Normalize action IDs in the results
+      return results.map(action => {
+        if (action._id) {
+          action._id = this.normalizeActionId(action._id);
+        }
+        return action;
+      });
     } catch (error) {
       console.error("Error fetching all available actions:", error);
       throw new Error("Failed to fetch all available actions");
