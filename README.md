@@ -2,9 +2,9 @@
 
 [![npm version](https://img.shields.io/npm/v/%40picahq%2Fai)](https://npmjs.com/package/@picahq/ai)
 
-The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI SDK](https://www.npmjs.com/package/ai).
+![Pica Vercel AI SDK Banner](https://assets.picaos.com/git/vercel-ai-sdk.png)
 
-![Pica OneTool](https://assets.picaos.com/github/onetool.svg)
+The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI SDK](https://www.npmjs.com/package/ai).
 
 For detailed instructions and examples, view the [documentation](https://docs.picaos.com/sdk/vercel-ai).
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const systemPrompt = await pica.generateSystemPrompt();
 
   const stream = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-4.1"),
     system: systemPrompt,
     tools: { ...pica.oneTool },
     messages: convertToCoreMessages(messages),
@@ -73,7 +73,10 @@ Examples for streaming and creating an express server can be found in the [examp
 
 Once you've installed the SDK and connected your platforms in the [Pica dashboard](https://app.picaos.com/connections), you can seamlessly build your own AI agents to automate your workflows. 
 
-Here's some inspiration:
+
+![Pica OneTool](https://assets.picaos.com/git/one-tool.png)
+
+Here are some powerful examples of what you can build:
 
 ### Communication & Productivity
 - Send an email using Gmail to a colleague with a meeting summary
