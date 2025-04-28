@@ -1,6 +1,6 @@
 {
     "name": "@picahq/ai",
-    "version": "2.4.11",
+    "version": "2.4.12",
     "description": "Pica AI SDK for Vercel AI SDK integration",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
