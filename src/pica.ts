@@ -408,7 +408,7 @@ ${this.system.trim()}
       }
 
       if (returnRequestConfigWithoutExecution) {
-        requestConfig.headers['x-pica-secret'] = "YOUR_SECRET_KEY_HERE";
+        requestConfig.headers['x-pica-secret'] = "YOUR_PICA_SECRET_KEY_HERE";
 
         return {
           executed: false,
@@ -417,6 +417,8 @@ ${this.system.trim()}
       }
 
       const response = await axios(requestConfig);
+
+      requestConfig.headers['x-pica-secret'] = "****REDACTED****";
 
       return {
         executed: true,
@@ -737,7 +739,6 @@ ${this.system.trim()}
               platform: params.platform,
               action: fullAction.title,
               requestConfig: result.requestConfig,
-              knowledge: fullAction.knowledge,
               content: `Executed ${fullAction.title} via ${params.platform}`,
             };
           } catch (error: any) {
