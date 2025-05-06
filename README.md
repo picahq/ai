@@ -74,7 +74,7 @@ Examples for streaming and creating an express server can be found in the [examp
 Once you've installed the SDK and connected your platforms in the [Pica dashboard](https://app.picaos.com/connections), you can seamlessly build your own AI agents to automate your workflows. 
 
 
-![Pica OneTool](https://assets.picaos.com/git/one-tool.png)
+![Pica OneTool](https://assets.picaos.com/github/one-tool.svg)
 
 Here are some powerful examples of what you can build:
 
