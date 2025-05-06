@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40picahq%2Fai)](https://npmjs.com/package/@picahq/ai)
 
-![Pica Vercel AI SDK Banner](https://assets.picaos.com/git/vercel-ai-sdk.png)
+<img src="https://assets.picaos.com/github/vercel-ai-sdk.svg" alt="Pica Vercel AI SDK Banner" style="border-radius: 5px;">
 
 The Pica AI SDK is a TypeScript library for integrating Pica with [Vercel's AI SDK](https://www.npmjs.com/package/ai).
 
