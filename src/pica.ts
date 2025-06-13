@@ -26,6 +26,7 @@ interface PicaOptions {
    * @property authkit - Whether to enable AuthKit integration
    * @property knowledgeAgent - Whether to enable Knowledge Agent mode
    * @property knowledgeAgentConfig - Configuration options for Knowledge Agent
+   * @property headers - Additional headers to send with requests
    */
   connectors?: string[];
   actions?: string[];
@@ -36,6 +37,7 @@ interface PicaOptions {
   authkit?: boolean;
   knowledgeAgent?: boolean;
   knowledgeAgentConfig?: KnowledgeAgentConfig;
+  headers?: Record<string, string>;
 }
 
 interface KnowledgeAgentConfig {
@@ -157,7 +159,10 @@ ${this.system.trim()}
 
   private async initializeConnections(platform?: string) {
     try {
-      const headers = this.generateHeaders();
+      const headers = {
+        ...this.generateHeaders(),
+        ...this.options?.headers
+      };
 
       let baseUrl = this.getConnectionUrl;
       let hasQueryParam = false;
@@ -197,7 +202,10 @@ ${this.system.trim()}
 
   private async initializeConnectionDefinitions() {
     try {
-      const headers = this.generateHeaders();
+      const headers = {
+        ...this.generateHeaders(),
+        ...this.options?.headers
+      };
 
       let url = this.getConnectionDefinitionsUrl;
       let hasQueryParam = false;
@@ -246,7 +254,12 @@ ${this.system.trim()}
           limit: number
         }>(
           `${this.availableActionsUrl}?supported=true&connectionPlatform=${platform}&skip=${skip}&limit=${limit}`,
-          { headers: this.generateHeaders() }
+          {
+            headers: {
+              ...this.generateHeaders(),
+              ...this.options?.headers
+            }
+          }
         ).then(response => response.data);
 
       const results = await paginateResults<AvailableActions>(fetchPage);
@@ -312,7 +325,12 @@ ${this.system.trim()}
         limit: number
       }>(
         `${this.availableActionsUrl}?_id=${normalizedActionId}`,
-        { headers: this.generateHeaders() }
+        {
+          headers: {
+            ...this.generateHeaders(),
+            ...this.options?.headers
+          }
+        }
       );
 
       if (!response.data.rows || response.data.rows.length === 0) {
@@ -365,7 +383,8 @@ ${this.system.trim()}
         'x-pica-action-id': actionId,
         ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {}),
         ...(isFormUrlEncoded ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-        ...headers
+        ...headers,
+        ...this.options?.headers
       };
 
       const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
@@ -393,7 +412,7 @@ ${this.system.trim()}
 
           requestConfig.data = formData;
 
-          Object.assign(requestConfig.headers, formData.getHeaders());
+          Object.assign(requestConfig.headers, formData.getHeaders(), this.options?.headers);
         } else if (isFormUrlEncoded) {
           const params = new URLSearchParams();
 
