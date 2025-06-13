@@ -2,19 +2,34 @@ import axios from "axios";
 import { z } from "zod";
 import FormData from 'form-data';
 
+import { getDefaultSystemPrompt } from "./prompts/defaultSystem";
+import { getDefaultSystemWithAuthkitPrompt } from "./prompts/defaultSystemWithAuthkit";
+import { getKnowledgeAgentSystemPrompt } from "./prompts/knowledgeAgentSystem";
+import { getKnowledgeAgentWithAuthkitSystemPrompt } from "./prompts/knowledgeAgentWithAuthkitSystem";
+import { normalizeActionId, paginateResults, replacePathVariables } from "./utils";
 import {
   AvailableActions,
   RequestConfig,
   ConnectionDefinition,
   Connection
 } from "./types/connection";
-import { getDefaultSystemPrompt } from "./prompts/defaultSystem";
-import { getDefaultSystemWithAuthkitPrompt } from "./prompts/defaultSystemWithAuthkit";
-import { getKnowledgeAgentSystemPrompt } from "./prompts/knowledgeAgentSystem";
-import { getKnowledgeAgentWithAuthkitSystemPrompt } from "./prompts/knowledgeAgentWithAuthkitSystem";
 
 interface PicaOptions {
+  /**
+   * The descriptor for the Pica client options.
+   * @property connectors - Array of connector IDs to filter available actions
+   * @property actions - Array of action IDs to filter available actions (default: all actions)
+   * @property permissions - Permissions for the Pica client: "read" (GET only), "write" (POST/PUT/PATCH), "admin" (all methods) (default: "admin")
+   * @property serverUrl - Custom server URL for Pica API (defaults to https://api.picaos.com)
+   * @property identity - Identity value for AuthKit token generation
+   * @property identityType - Type of identity for AuthKit ("user", "team", "organization", or "project")
+   * @property authkit - Whether to enable AuthKit integration
+   * @property knowledgeAgent - Whether to enable Knowledge Agent mode
+   * @property knowledgeAgentConfig - Configuration options for Knowledge Agent
+   */
   connectors?: string[];
+  actions?: string[];
+  permissions?: "read" | "write" | "admin";
   serverUrl?: string;
   identity?: string;
   identityType?: "user" | "team" | "organization" | "project";
@@ -38,6 +53,7 @@ export class Pica {
   private useAuthkit: boolean;
   private useKnowledgeAgent: boolean;
   private knowledgeAgentConfig?: KnowledgeAgentConfig;
+  private options?: PicaOptions;
 
   private baseUrl = "https://api.picaos.com";
   private getConnectionUrl;
@@ -56,6 +72,7 @@ export class Pica {
     this.knowledgeAgentConfig = options?.knowledgeAgentConfig || {
       includeEnvironmentVariables: true
     };
+    this.options = options;
 
     if (options?.serverUrl) {
       this.baseUrl = options.serverUrl;
@@ -114,8 +131,8 @@ export class Pica {
     await this.waitForInitialization();
 
     const now = new Date();
-    const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: INTEGRATION ASSISTANT ===
-Everything below is for Pica (picaos.com), your integration assistant that can instantly connect your AI agents to 100+ APIs.
+    const prompt = `${userSystemPrompt ? userSystemPrompt + '\n\n' : ''}=== PICA: INTEGRATION ASSISTANT ===\n
+Everything below is for Pica (picaos.com), your integration assistant that can instantly connect your AI agents to 100+ APIs.\n
 
 Current Time: ${now.toLocaleString('en-US', { timeZone: 'GMT' })} (GMT)
 
@@ -142,7 +159,7 @@ ${this.system.trim()}
     try {
       const headers = this.generateHeaders();
 
-      let baseUrl = `${this.baseUrl}/v1/vault/connections`;
+      let baseUrl = this.getConnectionUrl;
       let hasQueryParam = false;
 
       if (platform) {
@@ -171,7 +188,7 @@ ${this.system.trim()}
           { headers }
         ).then(response => response.data);
 
-      this.connections = await this.paginateResults<Connection>(fetchPage);
+      this.connections = await paginateResults<Connection>(fetchPage);
     } catch (error) {
       console.error("Failed to initialize connections:", error);
       this.connections = [];
@@ -182,7 +199,7 @@ ${this.system.trim()}
     try {
       const headers = this.generateHeaders();
 
-      let url = `${this.baseUrl}/v1/available-connectors`;
+      let url = this.getConnectionDefinitionsUrl;
       let hasQueryParam = false;
 
       if (this.useAuthkit) {
@@ -201,7 +218,7 @@ ${this.system.trim()}
           { headers }
         ).then(response => response.data);
 
-      this.connectionDefinitions = await this.paginateResults<ConnectionDefinition>(fetchPage);
+      this.connectionDefinitions = await paginateResults<ConnectionDefinition>(fetchPage);
     } catch (error) {
       console.error("Failed to initialize connection definitions:", error);
       this.connectionDefinitions = [];
@@ -219,36 +236,7 @@ ${this.system.trim()}
     };
   }
 
-  private async paginateResults<T>(
-    fetchFn: (skip: number, limit: number) => Promise<{
-      rows: T[],
-      total: number,
-      skip: number,
-      limit: number
-    }>,
-    limit = 100
-  ): Promise<T[]> {
-    let skip = 0;
-    let allResults: T[] = [];
-    let total = 0;
-
-    try {
-      do {
-        const response = await fetchFn(skip, limit);
-        const { rows, total: totalCount } = response;
-        total = totalCount;
-        allResults = [...allResults, ...rows];
-        skip += limit;
-      } while (allResults.length < total);
-
-      return allResults;
-    } catch (error) {
-      console.error("Error in pagination:", error);
-      throw error;
-    }
-  }
-
-  private async getAllAvailableActions(platform: string): Promise<AvailableActions[]> {
+  private async getAllAvailableActions(platform: string, actions?: string[]): Promise<AvailableActions[]> {
     try {
       const fetchPage = (skip: number, limit: number) =>
         axios.get<{
@@ -261,15 +249,43 @@ ${this.system.trim()}
           { headers: this.generateHeaders() }
         ).then(response => response.data);
 
-      const results = await this.paginateResults<AvailableActions>(fetchPage);
+      const results = await paginateResults<AvailableActions>(fetchPage);
 
       // Normalize action IDs in the results
-      return results.map(action => {
+      const normalizedResults = results.map(action => {
         if (action._id) {
-          action._id = this.normalizeActionId(action._id);
+          action._id = normalizeActionId(action._id);
         }
         return action;
       });
+
+      // Filter actions by permissions
+      let filteredByPermissions = normalizedResults;
+      const permissions = this.options?.permissions;
+
+      if (permissions === "read") {
+        // Filter for GET methods only
+        filteredByPermissions = normalizedResults.filter(action => {
+          let method = action.method;
+          return method?.toUpperCase() === "GET";
+        });
+      } else if (permissions === "write") {
+        // Filter for POST, PUT, PATCH methods
+        filteredByPermissions = normalizedResults.filter(action => {
+          let method = action.method?.toUpperCase();
+          return method === "POST" || method === "PUT" || method === "PATCH";
+        });
+      }
+      // For "admin" or no permissions set, return all actions (no filtering)
+
+      // Filter actions if actions array is provided
+      if (actions?.length) {
+        return filteredByPermissions.filter(action =>
+          actions.includes(action._id)
+        );
+      }
+
+      return filteredByPermissions;
     } catch (error) {
       console.error("Error fetching all available actions:", error);
       throw new Error("Failed to fetch all available actions");
@@ -286,19 +302,9 @@ ${this.system.trim()}
     return this.connections;
   }
 
-  private normalizeActionId(raw: string): string {
-    if (raw.includes("::")) {
-      if (!raw.startsWith("conn_mod_def::")) {
-        return `conn_mod_def::${raw}`;
-      }
-      return raw;
-    }
-    return raw;
-  }
-
   private async getSingleAction(actionId: string): Promise<AvailableActions> {
     try {
-      const normalizedActionId = this.normalizeActionId(actionId);
+      const normalizedActionId = normalizeActionId(actionId);
       const response = await axios.get<{
         rows: AvailableActions[],
         total: number,
@@ -322,7 +328,7 @@ ${this.system.trim()}
 
   private async getAvailableActions(platform: string) {
     try {
-      const allActions = await this.getAllAvailableActions(platform);
+      const allActions = await this.getAllAvailableActions(platform, this.options?.actions);
       return {
         total: allActions.length,
         actions: allActions
@@ -431,16 +437,6 @@ ${this.system.trim()}
     }
   }
 
-  private replacePathVariables(path: string, variables: Record<string, string | number | boolean>): string {
-    return path.replace(/\{\{([^}]+)\}\}/g, (match, variable) => {
-      const value = variables[variable];
-      if (!value) {
-        throw new Error(`Missing value for path variable: ${variable}`);
-      }
-      return value.toString();
-    });
-  }
-
   private getPromptToConnectPlatformTool() {
     return {
       promptToConnectPlatform: {
@@ -529,10 +525,10 @@ ${this.system.trim()}
                 });
               }
 
-              resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
+              resolvedPath = replacePathVariables(params.action.path, params.pathVariables || {});
             }
 
-            const normalizedActionId = this.normalizeActionId(params.action._id);
+            const normalizedActionId = normalizeActionId(params.action._id);
             // Execute the passthrough request with all components
             const result = await this.executePassthrough(
               normalizedActionId,
@@ -624,7 +620,7 @@ ${this.system.trim()}
           actionId: string;
         }) => {
           try {
-            const normalizedActionId = this.normalizeActionId(params.actionId);
+            const normalizedActionId = normalizeActionId(params.actionId);
             const action = await this.getSingleAction(normalizedActionId);
 
             return {
@@ -681,7 +677,7 @@ ${this.system.trim()}
               throw new Error(`Connection not found. Please add a ${params.platform} connection first.`);
             }
 
-            const normalizedActionId = this.normalizeActionId(params.action._id);
+            const normalizedActionId = normalizeActionId(params.action._id);
             const fullAction = await this.getSingleAction(normalizedActionId);
 
             // Handle path variables
@@ -715,7 +711,7 @@ ${this.system.trim()}
                 });
               }
 
-              resolvedPath = this.replacePathVariables(params.action.path, params.pathVariables || {});
+              resolvedPath = replacePathVariables(params.action.path, params.pathVariables || {});
             }
 
             // Execute the passthrough request with all components

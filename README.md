@@ -29,6 +29,8 @@ The Pica SDK can be configured with the following options:
 |--------|------|----------|---------|-------------|
 | serverUrl | String | No | https://api.picaos.com | URL for self-hosted Pica server |
 | connectors | String[] | No | - | List of connector keys to filter by. Pass `["*"]` to initialize all available connectors, or specific connector keys to filter. If empty, no connections will be initialized |
+| actions | String[] | No | All actions | List of action ids to filter by |
+| permissions | `"read"` \| `"write"` \| `"admin"` | No | `"admin"` | Permissions for the Pica client. `"read"` will only allow GET requests, `"write"` will allow POST/PUT/PATCH requests, and `"admin"` will allow all methods. |
 | identity | String | No | None | Filter connections by specific identifier |
 | identityType | `"user"` \| `"team"` \| `"organization"` \| `"project"` | No | None | Filter connections by identity type |
 | authkit | Boolean | No | false | If true, the SDK will use Authkit to connect to prompt the user to connect to a platform that they do not currently have access to |
