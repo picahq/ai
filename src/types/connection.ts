@@ -6,6 +6,7 @@ export interface AvailableActions {
   path: string;
   baseUrl: string;
   tags: string[];
+  method?: string;
 }
 
 export interface RequestConfig {
