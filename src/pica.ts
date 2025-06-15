@@ -159,10 +159,7 @@ ${this.system.trim()}
 
   private async initializeConnections(platform?: string) {
     try {
-      const headers = {
-        ...this.generateHeaders(),
-        ...this.options?.headers
-      };
+      const headers = this.generateHeaders();
 
       let baseUrl = this.getConnectionUrl;
       let hasQueryParam = false;
@@ -202,10 +199,7 @@ ${this.system.trim()}
 
   private async initializeConnectionDefinitions() {
     try {
-      const headers = {
-        ...this.generateHeaders(),
-        ...this.options?.headers
-      };
+      const headers = this.generateHeaders();
 
       let url = this.getConnectionDefinitionsUrl;
       let hasQueryParam = false;
@@ -241,6 +235,7 @@ ${this.system.trim()}
     return {
       "Content-Type": "application/json",
       "x-pica-secret": this.secret,
+      ...this.options?.headers
     };
   }
 
@@ -254,12 +249,7 @@ ${this.system.trim()}
           limit: number
         }>(
           `${this.availableActionsUrl}?supported=true&connectionPlatform=${platform}&skip=${skip}&limit=${limit}`,
-          {
-            headers: {
-              ...this.generateHeaders(),
-              ...this.options?.headers
-            }
-          }
+          { headers: this.generateHeaders() }
         ).then(response => response.data);
 
       const results = await paginateResults<AvailableActions>(fetchPage);
@@ -325,12 +315,7 @@ ${this.system.trim()}
         limit: number
       }>(
         `${this.availableActionsUrl}?_id=${normalizedActionId}`,
-        {
-          headers: {
-            ...this.generateHeaders(),
-            ...this.options?.headers
-          }
-        }
+        { headers: this.generateHeaders() }
       );
 
       if (!response.data.rows || response.data.rows.length === 0) {
@@ -383,8 +368,7 @@ ${this.system.trim()}
         'x-pica-action-id': actionId,
         ...(isFormData ? { 'Content-Type': 'multipart/form-data' } : {}),
         ...(isFormUrlEncoded ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-        ...headers,
-        ...this.options?.headers
+        ...headers
       };
 
       const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
@@ -412,7 +396,7 @@ ${this.system.trim()}
 
           requestConfig.data = formData;
 
-          Object.assign(requestConfig.headers, formData.getHeaders(), this.options?.headers);
+          Object.assign(requestConfig.headers, formData.getHeaders());
         } else if (isFormUrlEncoded) {
           const params = new URLSearchParams();
 
