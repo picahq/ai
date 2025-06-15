@@ -26,6 +26,7 @@ interface PicaOptions {
    * @property authkit - Whether to enable AuthKit integration
    * @property knowledgeAgent - Whether to enable Knowledge Agent mode
    * @property knowledgeAgentConfig - Configuration options for Knowledge Agent
+   * @property headers - Additional headers to send with requests
    */
   connectors?: string[];
   actions?: string[];
@@ -36,6 +37,7 @@ interface PicaOptions {
   authkit?: boolean;
   knowledgeAgent?: boolean;
   knowledgeAgentConfig?: KnowledgeAgentConfig;
+  headers?: Record<string, string>;
 }
 
 interface KnowledgeAgentConfig {
@@ -233,6 +235,7 @@ ${this.system.trim()}
     return {
       "Content-Type": "application/json",
       "x-pica-secret": this.secret,
+      ...this.options?.headers
     };
   }
 
