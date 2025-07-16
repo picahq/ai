@@ -129,6 +129,7 @@ You MUST follow this exact sequence for EACH EXECUTION:
   * data: Request payload (optional)
   * pathVariables: Values for path variables (if needed)
   * queryParams: Query parameters (if needed)
+  * headers: Headers (if needed)
   * isFormData: Set to true for multipart/form-data
   * isFormUrlEncoded: Set to true for application/x-www-form-urlencoded
 
