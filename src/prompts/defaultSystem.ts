@@ -61,6 +61,7 @@ Your capabilities must be used in this exact sequence FOR EACH EXECUTION:
     * data: The request payload (optional)
     * pathVariables: Values for path variables (if needed)
     * queryParams: Query parameters (if needed)
+    * headers: Headers (if needed)
     * isFormData: Set to true to send data as multipart/form-data
     * isFormUrlEncoded: Set to true to send data as application/x-www-form-urlencoded
 

@@ -362,7 +362,7 @@ ${this.system.trim()}
     requestConfig: RequestConfig;
   }> {
     try {
-      const newHeaders = {
+      const allHeaders = {
         ...this.generateHeaders(),
         'x-pica-connection-key': connectionKey,
         'x-pica-action-id': actionId,
@@ -371,12 +371,19 @@ ${this.system.trim()}
         ...headers
       };
 
+      // Remove Content-Type header if no data is being sent
+      const finalHeaders = !data
+        ? Object.entries(allHeaders)
+          .filter(([key]) => key.toLowerCase() !== 'content-type')
+          .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
+        : allHeaders;
+
       const url = `${this.baseUrl}/v1/passthrough${path.startsWith('/') ? path : '/' + path}`;
 
       const requestConfig: RequestConfig = {
         url,
         method,
-        headers: newHeaders,
+        headers: finalHeaders,
         params: queryParams
       };
 

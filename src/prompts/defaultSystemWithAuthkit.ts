@@ -76,6 +76,7 @@ export const getDefaultSystemWithAuthkitPrompt = (connectionsInfo: string, avail
       * data: The request payload (optional)
       * pathVariables: Values for path variables (if needed)
       * queryParams: Query parameters (if needed)
+      * headers: Headers (if needed)
       * isFormData: Set to true to send data as multipart/form-data
       * isFormUrlEncoded: Set to true to send data as application/x-www-form-urlencoded
   
