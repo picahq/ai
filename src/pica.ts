@@ -87,13 +87,7 @@ export class Pica {
       .then(() => {
         let filteredConnections = this.connections.filter((conn: any) => conn.active);
 
-        if (options?.connectors?.length) {
-          if (!options.connectors.includes("*")) {
-            filteredConnections = filteredConnections.filter(conn =>
-              options.connectors!.includes(conn.key)
-            );
-          }
-        } else {
+        if (!options?.connectors?.length) {
           filteredConnections = [];
         }
 
@@ -147,7 +141,7 @@ ${this.system.trim()}
 
   private async initialize() {
     await Promise.all([
-      this.initializeConnections(),
+      this.initializeConnections(undefined, this.options?.connectors),
       this.initializeConnectionDefinitions(),
     ]);
   }
@@ -157,8 +151,13 @@ ${this.system.trim()}
     return this.system;
   }
 
-  private async initializeConnections(platform?: string) {
+  private async initializeConnections(platform?: string, connectionKeys?: string[]) {
     try {
+      if (!connectionKeys || connectionKeys.length === 0) {
+        this.connections = [];
+        return;
+      }
+
       const headers = this.generateHeaders();
 
       let baseUrl = this.getConnectionUrl;
@@ -166,6 +165,11 @@ ${this.system.trim()}
 
       if (platform) {
         baseUrl += `?platform=${platform}`;
+        hasQueryParam = true;
+      }
+
+      if (!connectionKeys.includes("*")) {
+        baseUrl += hasQueryParam ? `&key=${connectionKeys.join(',')}` : `?key=${connectionKeys.join(',')}`;
         hasQueryParam = true;
       }
 
@@ -301,7 +305,7 @@ ${this.system.trim()}
   }
 
   public async getAvailableConnectors(platform?: string) {
-    await this.initializeConnections(platform);
+    await this.initializeConnections(platform, this.options?.connectors);
     return this.connections;
   }
 
