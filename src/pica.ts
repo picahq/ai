@@ -1,5 +1,6 @@
 import axios from "axios";
 import { z } from "zod";
+import { tool } from "ai";
 import FormData from 'form-data';
 
 import { getDefaultSystemPrompt } from "./prompts/defaultSystem";
@@ -453,17 +454,20 @@ ${this.system.trim()}
 
   private getPromptToConnectPlatformTool() {
     return {
-      promptToConnectPlatform: {
+      promptToConnectPlatform: tool({
         description: "Prompt the user to connect to a platform that they do not currently have access to",
-        parameters: z.object({
+        inputSchema: z.object({
           platformName: z.string(),
         }),
-        execute: async ({ platformName }: { platformName: string }) => {
+        outputSchema: z.object({
+          response: z.string(),
+        }),
+        execute: async ({ platformName }) => {
           return {
             response: platformName
-          };
+          }
         }
-      }
+      })
     }
   }
 
@@ -471,9 +475,9 @@ ${this.system.trim()}
     const baseTool = {
       getAvailableActions: this.oneTool.getAvailableActions,
       getActionKnowledge: this.oneTool.getActionKnowledge,
-      execute: {
+      execute: tool({
         description: "Return a request config to the Pica Passthrough API without executing the action. Show the user a typescript code block to make an HTTP request to the Pica Passthrough API using the request config.",
-        parameters: z.object({
+        inputSchema: z.object({
           platform: z.string(),
           action: z.object({
             _id: z.string(),
@@ -482,11 +486,17 @@ ${this.system.trim()}
           method: z.string(),
           connectionKey: z.string(),
           data: z.any(),
-          pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-          queryParams: z.record(z.any()).optional(),
-          headers: z.record(z.any()).optional(),
+          pathVariables: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+          queryParams: z.record(z.string(), z.any()).optional(),
+          headers: z.record(z.string(), z.any()).optional(),
           isFormData: z.boolean().optional(),
           isFormUrlEncoded: z.boolean().optional(),
+        }),
+        outputSchema: z.object({
+          success: z.boolean(),
+          title: z.string(),
+          message: z.string(),
+          raw: z.string()
         }),
         execute: async (params: {
           platform: string;
@@ -573,7 +583,7 @@ ${this.system.trim()}
             };
           }
         }
-      }
+      })
     };
 
     // Add the promptToConnectPlatform tool if authkit is enabled
@@ -589,10 +599,20 @@ ${this.system.trim()}
 
   get oneTool() {
     const baseTool = {
-      getAvailableActions: {
+      getAvailableActions: tool({
         description: "Get available actions for a specific platform",
-        parameters: z.object({
+        inputSchema: z.object({
           platform: z.string(),
+        }),
+        outputSchema: z.object({
+          success: z.boolean(),
+          actions: z.array(z.object({
+            _id: z.string(),
+            title: z.string(),
+            tags: z.array(z.string()),
+          })),
+          platform: z.string(),
+          content: z.string()
         }),
         execute: async (params: {
           platform: string;
@@ -621,13 +641,28 @@ ${this.system.trim()}
               raw: JSON.stringify(error?.response?.data || error)
             };
           }
-        },
-      },
-      getActionKnowledge: {
+        }
+      }),
+      getActionKnowledge: tool({
         description: "Get full action details including knowledge documentation for a specific action",
-        parameters: z.object({
+        inputSchema: z.object({
           platform: z.string(),
           actionId: z.string(),
+        }),
+        outputSchema: z.object({
+          success: z.boolean(),
+          action: z.object({
+            _id: z.string(),
+            title: z.string(),
+            connectionPlatform: z.string(),
+            knowledge: z.string(),
+            path: z.string(),
+            baseUrl: z.string(),
+            tags: z.array(z.string()),
+            method: z.string().optional()
+          }),
+          platform: z.string(),
+          content: z.string()
         }),
         execute: async (params: {
           platform: string;
@@ -653,10 +688,10 @@ ${this.system.trim()}
             };
           }
         }
-      },
-      execute: {
+      }),
+      execute: tool({
         description: "Execute a specific action using the passthrough API",
-        parameters: z.object({
+        inputSchema: z.object({
           platform: z.string(),
           action: z.object({
             _id: z.string(),
@@ -665,9 +700,9 @@ ${this.system.trim()}
           method: z.string(),
           connectionKey: z.string(),
           data: z.any(),
-          pathVariables: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-          queryParams: z.record(z.any()).optional(),
-          headers: z.record(z.any()).optional(),
+          pathVariables: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+          queryParams: z.record(z.string(), z.any()).optional(),
+          headers: z.record(z.string(), z.any()).optional(),
           isFormData: z.boolean().optional(),
           isFormUrlEncoded: z.boolean().optional(),
         }),
@@ -761,7 +796,7 @@ ${this.system.trim()}
             };
           }
         }
-      }
+      })
     };
 
     // Add the promptToConnectPlatform tool if authkit is enabled
